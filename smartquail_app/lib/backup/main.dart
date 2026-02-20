@@ -1,24 +1,14 @@
 // SmartQuail Mobile App
 // IoT Monitoring untuk Kandang Puyuh Cerdas
-// UPDATED: Firebase Realtime Database Integration
+// Author: Ricky Rudiansyah & Marcellino Asanuddin
 
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/control_screen.dart';
 import 'screens/settings_screen.dart';
 
-void main() async {
-  // [INDO] Pastikan Flutter binding sudah siap
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // [INDO] Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
+void main() {
   runApp(const SmartQuailApp());
 }
 
@@ -29,19 +19,23 @@ class SmartQuailApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SmartQuail',
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: false, // Hilangkan banner debug
       theme: ThemeData(
+        // Warna utama app
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF007AFF),
+          seedColor: const Color(0xFF007AFF), // Apple Blue
           brightness: Brightness.light,
         ),
+        // Font
         fontFamily: 'SF Pro Display',
+        // App bar theme
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Color(0xFF1D1D1F),
           elevation: 0,
           centerTitle: true,
         ),
+        // Card theme
         cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -49,6 +43,7 @@ class SmartQuailApp extends StatelessWidget {
           ),
           color: Colors.white,
         ),
+        // Scaffold background
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
@@ -68,6 +63,7 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
+  // [INDO] List halaman yang akan ditampilkan
   final List<Widget> _screens = [
     const DashboardScreen(),
     const HistoryScreen(),
@@ -108,6 +104,7 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
+  // [INDO] Widget untuk item navigasi
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
     return GestureDetector(

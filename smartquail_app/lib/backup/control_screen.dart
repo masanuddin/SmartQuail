@@ -1,8 +1,7 @@
-// [INDO] Control Screen - FIREBASE VERSION
-// Untuk mengontrol misting dan kipas via Firebase
+// [INDO] Control Screen - Halaman kontrol manual
+// Untuk mengontrol misting dan kipas secara manual
 
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
 
 class ControlScreen extends StatefulWidget {
   const ControlScreen({super.key});
@@ -12,116 +11,48 @@ class ControlScreen extends StatefulWidget {
 }
 
 class _ControlScreenState extends State<ControlScreen> {
-  // [INDO] Firebase Database Reference
-  final DatabaseReference _database = FirebaseDatabase.instance.ref();
-  
   bool isAutoMode = true;
   bool isMistingOn = false;
   bool isFanOn = false;
-  bool isExhaustOn = false;
   bool isBuzzerOn = false;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadControlState();
-  }
-
-  // [INDO] Load current control state from Firebase
-  Future<void> _loadControlState() async {
-    final snapshot = await _database.child('smartquail/controls').get();
-    if (snapshot.exists) {
-      final data = snapshot.value as Map<dynamic, dynamic>;
-      setState(() {
-        isAutoMode = data['auto_mode'] ?? true;
-        isMistingOn = data['misting'] ?? false;
-        isFanOn = data['fan'] ?? false;
-        isExhaustOn = data['exhaust'] ?? false;
-        isBuzzerOn = data['buzzer'] ?? false;
-      });
-    }
-  }
-
-  // [INDO] Update control ke Firebase
-  Future<void> _updateControl(String key, dynamic value) async {
-    setState(() => _isLoading = true);
-    try {
-      await _database.child('smartquail/controls/$key').set(value);
-      // [INDO] Juga update timestamp
-      await _database.child('smartquail/controls/last_updated').set(
-        ServerValue.timestamp,
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-    setState(() => _isLoading = false);
-  }
-
-  // [INDO] Trigger feeding sekali
-  Future<void> _triggerFeeding() async {
-    setState(() => _isLoading = true);
-    try {
-      await _database.child('smartquail/controls/feed_now').set(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🍽️ Feeding triggered!'),
-          backgroundColor: Color(0xFF34C759),
-        ),
-      );
-      // Reset setelah 3 detik
-      await Future.delayed(const Duration(seconds: 3));
-      await _database.child('smartquail/controls/feed_now').set(false);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-    setState(() => _isLoading = false);
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 20),
-                    if (!isAutoMode) _buildWarningBanner(),
-                    const SizedBox(height: 16),
-                    _buildAutoModeCard(),
-                    const SizedBox(height: 20),
-                    _buildControlSection(),
-                    const SizedBox(height: 20),
-                    _buildFeederSection(),
-                    const SizedBox(height: 20),
-                    _buildStatusCard(),
-                    const SizedBox(height: 20),
-                    _buildPresetsSection(),
-                  ],
-                ),
-              ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                _buildHeader(),
+                const SizedBox(height: 20),
+
+                // Warning Banner (when manual mode)
+                if (!isAutoMode) _buildWarningBanner(),
+                const SizedBox(height: 16),
+
+                // Auto Mode Toggle
+                _buildAutoModeCard(),
+                const SizedBox(height: 20),
+
+                // Manual Controls
+                _buildControlSection(),
+                const SizedBox(height: 20),
+
+                // Current Status
+                _buildStatusCard(),
+                const SizedBox(height: 20),
+
+                // Quick Presets
+                _buildPresetsSection(),
+              ],
             ),
-            // Loading overlay
-            if (_isLoading)
-              Container(
-                color: Colors.black.withOpacity(0.3),
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -144,7 +75,7 @@ class _ControlScreenState extends State<ControlScreen> {
               ),
             ),
             Text(
-              'Atur sistem pendingin via Firebase',
+              'Atur sistem pendingin secara manual',
               style: TextStyle(
                 fontSize: 13,
                 color: Color(0xFF8E8E93),
@@ -240,7 +171,7 @@ class _ControlScreenState extends State<ControlScreen> {
                     ),
                   ),
                   Text(
-                    isAutoMode ? 'Sistem dikontrol AI/THI' : 'Kontrol manual aktif',
+                    isAutoMode ? 'Sistem dikontrol berdasarkan THI' : 'Kontrol manual aktif',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF8E8E93),
@@ -257,12 +188,11 @@ class _ControlScreenState extends State<ControlScreen> {
               setState(() {
                 isAutoMode = value;
                 if (isAutoMode) {
+                  // Reset manual controls when switching to auto
                   isMistingOn = false;
                   isFanOn = false;
-                  isExhaustOn = false;
                 }
               });
-              _updateControl('auto_mode', value);
             },
           ),
         ],
@@ -302,20 +232,19 @@ class _ControlScreenState extends State<ControlScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Misting Control
           _buildControlToggle(
             icon: Icons.water_drop_rounded,
             label: 'Sistem Misting',
-            subtitle: 'Semprotkan kabut air',
+            subtitle: 'Semprotkan kabut air untuk pendinginan',
             isOn: isMistingOn,
             color: const Color(0xFF007AFF),
             enabled: !isAutoMode,
-            onChanged: (value) {
-              setState(() => isMistingOn = value);
-              _updateControl('misting', value);
-            },
+            onChanged: (value) => setState(() => isMistingOn = value),
           ),
           const Divider(height: 24),
 
+          // Fan Control
           _buildControlToggle(
             icon: Icons.air_rounded,
             label: 'Kipas Pendingin',
@@ -323,27 +252,11 @@ class _ControlScreenState extends State<ControlScreen> {
             isOn: isFanOn,
             color: const Color(0xFF34C759),
             enabled: !isAutoMode,
-            onChanged: (value) {
-              setState(() => isFanOn = value);
-              _updateControl('fan', value);
-            },
+            onChanged: (value) => setState(() => isFanOn = value),
           ),
           const Divider(height: 24),
 
-          _buildControlToggle(
-            icon: Icons.wind_power_rounded,
-            label: 'Kipas Exhaust',
-            subtitle: 'Buang gas amonia',
-            isOn: isExhaustOn,
-            color: const Color(0xFF5856D6),
-            enabled: !isAutoMode,
-            onChanged: (value) {
-              setState(() => isExhaustOn = value);
-              _updateControl('exhaust', value);
-            },
-          ),
-          const Divider(height: 24),
-
+          // Buzzer Control
           _buildControlToggle(
             icon: Icons.notifications_active_rounded,
             label: 'Buzzer Alert',
@@ -351,115 +264,7 @@ class _ControlScreenState extends State<ControlScreen> {
             isOn: isBuzzerOn,
             color: const Color(0xFFFF9500),
             enabled: true,
-            onChanged: (value) {
-              setState(() => isBuzzerOn = value);
-              _updateControl('buzzer', value);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeederSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.restaurant_rounded, color: Color(0xFFFF9500), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Auto Feeder',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1D1D1F),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: _triggerFeeding,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF9500).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFF9500).withOpacity(0.3)),
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(Icons.restaurant, color: Color(0xFFFF9500), size: 32),
-                        SizedBox(height: 8),
-                        Text(
-                          'FEED NOW',
-                          style: TextStyle(
-                            color: Color(0xFFFF9500),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        Text(
-                          'Kasih makan sekarang',
-                          style: TextStyle(
-                            color: Color(0xFF8E8E93),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Column(
-                    children: [
-                      Icon(Icons.schedule, color: Color(0xFF8E8E93), size: 32),
-                      SizedBox(height: 8),
-                      Text(
-                        'Next: 12:00',
-                        style: TextStyle(
-                          color: Color(0xFF1D1D1F),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Text(
-                        'Jadwal berikutnya',
-                        style: TextStyle(
-                          color: Color(0xFF8E8E93),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            onChanged: (value) => setState(() => isBuzzerOn = value),
           ),
         ],
       ),
@@ -560,10 +365,9 @@ class _ControlScreenState extends State<ControlScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _statusItem('Mode', isAutoMode ? 'Auto' : 'Manual')),
+              Expanded(child: _statusItem('Mode', isAutoMode ? 'Otomatis' : 'Manual')),
               Expanded(child: _statusItem('Misting', isMistingOn ? 'ON' : 'OFF')),
               Expanded(child: _statusItem('Kipas', isFanOn ? 'ON' : 'OFF')),
-              Expanded(child: _statusItem('Exhaust', isExhaustOn ? 'ON' : 'OFF')),
             ],
           ),
         ],
@@ -572,10 +376,10 @@ class _ControlScreenState extends State<ControlScreen> {
   }
 
   Widget _statusItem(String label, String value) {
-    final isOn = value == 'ON' || value == 'Auto';
+    final isOn = value == 'ON' || value == 'Otomatis';
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-      margin: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFF5F5F7),
         borderRadius: BorderRadius.circular(10),
@@ -585,7 +389,7 @@ class _ControlScreenState extends State<ControlScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: isOn ? const Color(0xFF34C759) : const Color(0xFF8E8E93),
             ),
@@ -594,7 +398,7 @@ class _ControlScreenState extends State<ControlScreen> {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               color: Color(0xFF8E8E93),
             ),
           ),
@@ -641,17 +445,12 @@ class _ControlScreenState extends State<ControlScreen> {
                   label: 'Semua OFF',
                   icon: Icons.power_off_rounded,
                   color: const Color(0xFF8E8E93),
-                  onTap: () async {
+                  onTap: () {
                     setState(() {
                       isAutoMode = false;
                       isMistingOn = false;
                       isFanOn = false;
-                      isExhaustOn = false;
                     });
-                    await _updateControl('auto_mode', false);
-                    await _updateControl('misting', false);
-                    await _updateControl('fan', false);
-                    await _updateControl('exhaust', false);
                   },
                 ),
               ),
@@ -661,37 +460,27 @@ class _ControlScreenState extends State<ControlScreen> {
                   label: 'Kipas Saja',
                   icon: Icons.air_rounded,
                   color: const Color(0xFF34C759),
-                  onTap: () async {
+                  onTap: () {
                     setState(() {
                       isAutoMode = false;
                       isMistingOn = false;
                       isFanOn = true;
-                      isExhaustOn = false;
                     });
-                    await _updateControl('auto_mode', false);
-                    await _updateControl('misting', false);
-                    await _updateControl('fan', true);
-                    await _updateControl('exhaust', false);
                   },
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _presetButton(
-                  label: 'Full Cool',
+                  label: 'Full Cooling',
                   icon: Icons.ac_unit_rounded,
                   color: const Color(0xFF007AFF),
-                  onTap: () async {
+                  onTap: () {
                     setState(() {
                       isAutoMode = false;
                       isMistingOn = true;
                       isFanOn = true;
-                      isExhaustOn = true;
                     });
-                    await _updateControl('auto_mode', false);
-                    await _updateControl('misting', true);
-                    await _updateControl('fan', true);
-                    await _updateControl('exhaust', true);
                   },
                 ),
               ),
