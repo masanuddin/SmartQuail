@@ -1,5 +1,5 @@
-// [INDO] KPI Card - FINAL FIX
-// Guaranteed no overflow
+// [INDO] KPI Card - FIXED VERSION
+// Responsive, tidak overflow
 // lib/widgets/kpi_card.dart
 
 import 'package:flutter/material.dart';
@@ -23,10 +23,10 @@ class KPICard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -36,47 +36,44 @@ class KPICard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Icon container
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 18),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 8),
-          // Text content - use Flexible to prevent overflow
-          Flexible(
+          const SizedBox(width: 10),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Label
                 Text(
                   label.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 8,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[500],
-                    letterSpacing: 0.3,
+                    letterSpacing: 0.5,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                // Value
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
-                    height: 1.2,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                // Status badge
+                const SizedBox(height: 2),
                 _buildStatusBadge(),
               ],
             ),
@@ -105,16 +102,15 @@ class KPICard extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(top: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: badgeColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         statusText,
         style: TextStyle(
-          fontSize: 7,
+          fontSize: 8,
           fontWeight: FontWeight.w700,
           color: badgeColor,
         ),

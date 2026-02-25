@@ -1,5 +1,4 @@
-// [INDO] Dashboard Screen - FIXED VERSION
-// Responsive, Real-time, No Overflow
+// [INDO] Dashboard Screen - FULL VERSION dengan Amonia
 // lib/screens/dashboard_screen.dart
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import '../widgets/kpi_card.dart';
 import '../widgets/thi_gauge.dart';
+import '../widgets/status_banner.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -30,7 +30,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime lastUpdate = DateTime.now();
 
   StreamSubscription<DatabaseEvent>? _dataSubscription;
-  bool _alertShown = false;
 
   @override
   void initState() {
@@ -51,7 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .listen((DatabaseEvent event) {
       final data = event.snapshot.value as Map<dynamic, dynamic>?;
       
-      if (data != null && mounted) {
+      if (data != null) {
         setState(() {
           temperature = (data['temperature'] ?? 0).toDouble();
           humidity = (data['humidity'] ?? 0).toDouble();
@@ -63,6 +62,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           isOnline = data['online'] ?? false;
           lastUpdate = DateTime.now();
           
+          // Determine status
           if (thi < 72) {
             systemStatus = 'normal';
           } else if (thi < 78) {
@@ -72,33 +72,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
         });
         
-        // Alert amonia hanya sekali
-        if (amonia > 50 && !_alertShown) {
-          _alertShown = true;
+        // Check amonia alert
+        if (amonia > 50) {
           _showAmoniaAlert();
-          Future.delayed(const Duration(seconds: 30), () {
-            _alertShown = false;
-          });
         }
       }
     });
   }
 
   void _showAmoniaAlert() {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.warning, color: Colors.white),
-            const SizedBox(width: 8),
+            Icon(Icons.warning, color: Colors.white),
+            SizedBox(width: 8),
             Expanded(
               child: Text('⚠️ BAHAYA! Amonia tinggi ($amonia ppm)\nSegera bersihkan kandang!'),
             ),
           ],
         ),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 5),
+        duration: Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
       ),
     );
   }
@@ -109,41 +109,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async {
-            // Force refresh
-            setState(() {});
-          },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(),
-                        const SizedBox(height: 16),
-                        _buildStatusBanner(),
-                        const SizedBox(height: 16),
-                        _buildKPIGrid(),
-                        const SizedBox(height: 16),
-                        _buildAmoniaCard(),
-                        const SizedBox(height: 16),
-                        _buildRelayStatus(),
-                        const SizedBox(height: 16),
-                        _buildTHISection(),
-                        const SizedBox(height: 12),
-                        _buildLastUpdate(),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+          onRefresh: () async {},
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 20),
+                  StatusBanner(status: systemStatus, thi: thi),
+                  const SizedBox(height: 16),
+                  _buildKPIGrid(),
+                  const SizedBox(height: 20),
+                  _buildAmoniaCard(),
+                  const SizedBox(height: 20),
+                  _buildRelayStatus(),
+                  const SizedBox(height: 20),
+                  _buildTHISection(),
+                  const SizedBox(height: 16),
+                  _buildLastUpdate(),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -171,7 +160,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const Text(
                   'SmartQuail',
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -188,13 +177,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: isOnline ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 8,
@@ -204,12 +192,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 6),
               Text(
                 isOnline ? 'Online' : 'Offline',
                 style: TextStyle(
                   color: isOnline ? Colors.green : Colors.red,
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -220,101 +208,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildStatusBanner() {
-    Color bannerColor;
-    String title;
-    String subtitle;
-
-    if (systemStatus == 'danger') {
-      bannerColor = const Color(0xFFFF3B30);
-      title = 'Bahaya - Pendinginan Aktif';
-      subtitle = 'THI sangat tinggi, semua sistem cooling aktif';
-    } else if (systemStatus == 'warning') {
-      bannerColor = const Color(0xFFFF9500);
-      title = 'Perhatian - Kipas Aktif';
-      subtitle = 'THI memasuki zona warning, kipas dinyalakan';
-    } else {
-      bannerColor = const Color(0xFF34C759);
-      title = 'Normal - Sistem Standby';
-      subtitle = 'Kondisi kandang dalam keadaan optimal';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: bannerColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: bannerColor.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: bannerColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              systemStatus == 'danger' 
-                  ? Icons.warning_rounded 
-                  : systemStatus == 'warning'
-                      ? Icons.info_rounded
-                      : Icons.check_circle_rounded,
-              color: bannerColor,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: bannerColor,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: bannerColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'THI ${thi.toStringAsFixed(1)}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildKPIGrid() {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 2.4,  // Lebih lebar, lebih pendek
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 2.2,
       children: [
         KPICard(
           icon: Icons.thermostat_rounded,
@@ -338,7 +239,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           color: const Color(0xFF5856D6),
         ),
         KPICard(
-          icon: Icons.cloud_rounded,
+          icon: Icons.air_rounded,
           label: 'Amonia',
           value: '$amonia ppm',
           status: amonia > 50 ? 'danger' : (amonia > 25 ? 'warning' : 'normal'),
@@ -353,27 +254,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String statusText = amonia > 50 ? 'BAHAYA! Bersihkan kandang!' : (amonia > 25 ? 'Perhatian' : 'Normal');
     
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: statusColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               amonia > 50 ? Icons.warning_rounded : Icons.cloud_rounded,
               color: statusColor,
-              size: 24,
+              size: 28,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,16 +282,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   'Gas Amonia (NH₃)',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[800],
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   '$amonia ppm - $statusText',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: statusColor,
                   ),
@@ -405,14 +306,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildRelayStatus() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
+            blurRadius: 10,
           ),
         ],
       ),
@@ -421,24 +322,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.power_settings_new, color: Colors.blue, size: 18),
+              Icon(Icons.power_settings_new, color: Colors.blue, size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Status Perangkat',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: _buildRelayItem('Kipas', relayFan, Icons.air_rounded),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: _buildRelayItem('Pompa', relayPump, Icons.water_drop_rounded),
               ),
@@ -451,17 +352,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildRelayItem(String label, bool isOn, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isOn ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           Icon(
             icon,
             color: isOn ? Colors.green : Colors.grey,
-            size: 20,
+            size: 24,
           ),
           const SizedBox(width: 8),
           Column(
@@ -470,14 +371,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: Colors.grey[600],
                 ),
               ),
               Text(
                 isOn ? 'ON' : 'OFF',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: isOn ? Colors.green : Colors.grey,
                 ),
@@ -491,14 +392,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildTHISection() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
+            blurRadius: 10,
           ),
         ],
       ),
@@ -506,22 +407,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.speed, color: Color(0xFF5856D6), size: 18),
+              Icon(Icons.speed, color: Color(0xFF5856D6), size: 20),
               const SizedBox(width: 8),
               const Text(
                 'THI Monitor',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 180,
-            child: THIGauge(value: thi),
-          ),
+          const SizedBox(height: 20),
+          THIGauge(value: thi),
         ],
       ),
     );
@@ -532,8 +430,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Text(
         'Update: ${lastUpdate.hour.toString().padLeft(2, '0')}:${lastUpdate.minute.toString().padLeft(2, '0')}:${lastUpdate.second.toString().padLeft(2, '0')}',
         style: TextStyle(
-          fontSize: 11,
-          color: Colors.grey[500],
+          fontSize: 12,
+          color: Colors.grey,
         ),
       ),
     );
