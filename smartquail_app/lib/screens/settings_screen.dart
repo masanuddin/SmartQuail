@@ -157,7 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _divider(),
           _buildSettingsItem(
             icon: Icons.link_rounded,
-            label: 'Supabase URL',
+            label: 'Firebase URL',
             value: 'Connected',
             valueColor: const Color(0xFF34C759),
             onTap: () {},

@@ -16,7 +16,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // [INDO] Data sensor (nanti diganti dengan data real dari Supabase)
+  // [INDO] Data sensor (nanti diganti dengan data real dari Firebase)
   double temperature = 28.5;
   double humidity = 68.0;
   double thi = 75.2;
@@ -30,7 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // [INDO] Simulasi update data setiap 2 detik (ganti dengan Supabase realtime nanti)
+    // [INDO] Simulasi update data setiap 2 detik (ganti dengan Firebase realtime nanti)
     _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
       _simulateDataUpdate();
     });
@@ -42,7 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  // [INDO] Simulasi perubahan data (HAPUS ini nanti, ganti Supabase)
+  // [INDO] Simulasi perubahan data (HAPUS ini nanti, ganti Firebase)
   void _simulateDataUpdate() {
     setState(() {
       // Random fluctuation untuk demo

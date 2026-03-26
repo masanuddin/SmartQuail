@@ -15,7 +15,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String selectedPeriod = '24 Jam';
   final List<String> periods = ['1 Jam', '24 Jam', '7 Hari', '30 Hari'];
 
-  // [INDO] Data dummy untuk chart (ganti dengan data Supabase nanti)
+  // [INDO] Data dummy untuk chart (ganti dengan data  nanti)
   List<double> temperatureData = [];
   List<double> humidityData = [];
   List<double> thiData = [];

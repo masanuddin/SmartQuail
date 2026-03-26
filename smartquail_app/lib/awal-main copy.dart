@@ -1,18 +1,14 @@
 // SmartQuail Mobile App
 // IoT Monitoring untuk Kandang Puyuh Cerdas
-// UPDATED: Firebase Auth + Realtime Database Integration
+// UPDATED: Firebase Realtime Database Integration
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'screens/dashboard_screen_v2.dart';
 import 'screens/history_screen.dart';
 import 'screens/control_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/login_screen.dart';
-import 'services/auth_service.dart';
 
 void main() async {
   // [INDO] Pastikan Flutter binding sudah siap
@@ -21,16 +17,6 @@ void main() async {
   // [INDO] Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
-  // [INDO] Set system UI style (Apple-like)
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
-    ),
   );
   
   runApp(const SmartQuailApp());
@@ -66,117 +52,12 @@ class SmartQuailApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-      // [INDO] Ganti home dengan AuthWrapper
-      home: const AuthWrapper(),
+      home: const MainNavigation(),
     );
   }
 }
 
-// ============================================================
-// AUTH WRAPPER - Cek status login
-// ============================================================
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: AuthService.authStateChanges,
-      builder: (context, snapshot) {
-        // [INDO] Loading state - tampilkan splash screen
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
-        }
-
-        // [INDO] User sudah login -> ke Dashboard
-        if (snapshot.hasData) {
-          return const MainNavigation();
-        }
-
-        // [INDO] User belum login -> ke Login Screen
-        return const LoginScreen();
-      },
-    );
-  }
-}
-
-// ============================================================
-// SPLASH SCREEN - Loading saat cek auth
-// ============================================================
-class SplashScreen extends StatelessWidget {
-  const SplashScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App Icon
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: const Color(0xFF007AFF),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF007AFF).withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.sensors_rounded,
-                color: Colors.white,
-                size: 50,
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            // App Name
-            const Text(
-              'SmartQuail',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1D1D1F),
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'IoT Climate Control',
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            
-            const SizedBox(height: 48),
-            
-            // Loading indicator
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF007AFF)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// MAIN NAVIGATION - Bottom Navigation dengan 4 tab
-// ============================================================
+// [INDO] Widget utama dengan bottom navigation
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
