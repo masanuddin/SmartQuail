@@ -1,10 +1,7 @@
 // [INDO] Settings Screen - Halaman pengaturan aplikasi
 // Untuk mengatur threshold, notifikasi, dan preferensi lainnya
-// UPDATED: Tambah User Info dan Logout
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,7 +12,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   // Threshold settings
-  double thiNormal = 65.0;
+  double thiNormal = 72.0;
   double thiWarning = 78.0;
   double thiDanger = 85.0;
 
@@ -44,11 +41,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildHeader(),
                 const SizedBox(height: 24),
 
-                // ✅ NEW: User Info Section
-                _buildSectionTitle('Akun'),
-                _buildUserCard(),
-                const SizedBox(height: 24),
-
                 // Device Section
                 _buildSectionTitle('Perangkat'),
                 _buildDeviceCard(),
@@ -71,10 +63,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // About Section
                 _buildAboutCard(),
-                const SizedBox(height: 24),
-
-                // ✅ NEW: Logout Button
-                _buildLogoutButton(),
                 const SizedBox(height: 24),
 
                 // Version info
@@ -127,98 +115,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: Color(0xFF8E8E93),
           letterSpacing: 0.5,
         ),
-      ),
-    );
-  }
-
-  // ✅ NEW: User Card with account info
-  Widget _buildUserCard() {
-    final user = FirebaseAuth.instance.currentUser;
-    final isGuest = user?.isAnonymous ?? true;
-    final phoneNumber = user?.phoneNumber ?? '';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: isGuest 
-                  ? const Color(0xFF8E8E93).withOpacity(0.1)
-                  : const Color(0xFF007AFF).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: Icon(
-              isGuest ? Icons.person_outline : Icons.person,
-              color: isGuest ? const Color(0xFF8E8E93) : const Color(0xFF007AFF),
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          
-          // User Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isGuest ? 'Pengguna Tamu' : phoneNumber,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1D1D1F),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isGuest ? 'Login untuk fitur lengkap' : 'Akun terverifikasi',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Badge
-          if (!isGuest)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF34C759).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.verified, color: Color(0xFF34C759), size: 14),
-                  SizedBox(width: 4),
-                  Text(
-                    'Verified',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF34C759),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -326,7 +222,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () {
               setState(() {
-                thiNormal = 65.0;
+                thiNormal = 72.0;
                 thiWarning = 78.0;
                 thiDanger = 85.0;
               });
@@ -402,7 +298,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             thumbColor: color,
             overlayColor: color.withOpacity(0.1),
             trackHeight: 6,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
           ),
           child: Slider(
             value: value,
@@ -437,27 +332,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         children: [
           _buildSwitchItem(
-            icon: Icons.notifications_active_outlined,
+            icon: Icons.notifications_rounded,
             label: 'Push Notification',
-            subtitle: 'Terima notifikasi peringatan',
+            subtitle: 'Terima notifikasi saat THI berbahaya',
             value: pushNotification,
-            onChanged: (val) => setState(() => pushNotification = val),
+            onChanged: (value) => setState(() => pushNotification = value),
           ),
           _divider(),
           _buildSwitchItem(
-            icon: Icons.volume_up_outlined,
-            label: 'Suara Peringatan',
-            subtitle: 'Bunyi saat kondisi bahaya',
+            icon: Icons.volume_up_rounded,
+            label: 'Sound Alert',
+            subtitle: 'Bunyi alarm saat kondisi kritis',
             value: soundAlert,
-            onChanged: (val) => setState(() => soundAlert = val),
+            onChanged: (value) => setState(() => soundAlert = value),
           ),
           _divider(),
           _buildSwitchItem(
-            icon: Icons.email_outlined,
+            icon: Icons.email_rounded,
             label: 'Email Alert',
-            subtitle: 'Kirim laporan via email',
+            subtitle: 'Kirim laporan ke email',
             value: emailAlert,
-            onChanged: (val) => setState(() => emailAlert = val),
+            onChanged: (value) => setState(() => emailAlert = value),
           ),
         ],
       ),
@@ -539,101 +434,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: '',
             showArrow: true,
             onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ✅ NEW: Logout Button
-  Widget _buildLogoutButton() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _showLogoutDialog,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF3B30).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.logout_rounded,
-                    color: Color(0xFFFF3B30),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                const Text(
-                  'Keluar dari Akun',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFFFF3B30),
-                  ),
-                ),
-                const Spacer(),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFFFF3B30),
-                  size: 22,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ✅ NEW: Logout Dialog
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text('Keluar dari Akun'),
-        content: const Text('Apakah Anda yakin ingin keluar dari akun?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: Color(0xFF8E8E93)),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await AuthService.signOut();
-              // AuthWrapper akan auto redirect ke Login
-            },
-            child: const Text(
-              'Keluar',
-              style: TextStyle(
-                color: Color(0xFFFF3B30),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
           ),
         ],
       ),
@@ -746,7 +546,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           SizedBox(height: 4),
           Text(
-            'BINUS University © 2026',
+            'BINUS University © 2025',
             style: TextStyle(
               fontSize: 11,
               color: Color(0xFFAEAEB2),
@@ -761,9 +561,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
         title: const Text('Pilih Bahasa'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -792,9 +589,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
         title: const Text('Pilih Tema'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -825,9 +619,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
         title: Row(
           children: [
             Container(

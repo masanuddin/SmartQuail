@@ -15,15 +15,12 @@ import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 
 void main() async {
-  // [INDO] Pastikan Flutter binding sudah siap
   WidgetsFlutterBinding.ensureInitialized();
   
-  // [INDO] Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  // [INDO] Set system UI style (Apple-like)
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -66,8 +63,11 @@ class SmartQuailApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-      // [INDO] Ganti home dengan AuthWrapper
-      home: const AuthWrapper(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const AuthWrapper(),
+        '/login': (context) => const LoginScreen(),
+      },
     );
   }
 }
@@ -83,17 +83,14 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: AuthService.authStateChanges,
       builder: (context, snapshot) {
-        // [INDO] Loading state - tampilkan splash screen
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SplashScreen();
         }
 
-        // [INDO] User sudah login -> ke Dashboard
         if (snapshot.hasData) {
           return const MainNavigation();
         }
 
-        // [INDO] User belum login -> ke Login Screen
         return const LoginScreen();
       },
     );
@@ -101,7 +98,7 @@ class AuthWrapper extends StatelessWidget {
 }
 
 // ============================================================
-// SPLASH SCREEN - Loading saat cek auth
+// SPLASH SCREEN
 // ============================================================
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -114,7 +111,6 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // App Icon
             Container(
               width: 100,
               height: 100,
@@ -136,8 +132,6 @@ class SplashScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            
-            // App Name
             const Text(
               'SmartQuail',
               style: TextStyle(
@@ -155,10 +149,7 @@ class SplashScreen extends StatelessWidget {
                 color: Colors.grey.shade600,
               ),
             ),
-            
             const SizedBox(height: 48),
-            
-            // Loading indicator
             const SizedBox(
               width: 24,
               height: 24,
@@ -175,7 +166,7 @@ class SplashScreen extends StatelessWidget {
 }
 
 // ============================================================
-// MAIN NAVIGATION - Bottom Navigation dengan 4 tab
+// MAIN NAVIGATION
 // ============================================================
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -191,7 +182,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const DashboardScreen(),
     const HistoryScreen(),
     const ControlScreen(),
-    const SettingsScreen(),
+    const SettingsScreen(), // Settings dengan User Info + Logout
   ];
 
   @override
