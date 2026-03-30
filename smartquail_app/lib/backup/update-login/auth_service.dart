@@ -1,6 +1,3 @@
-// Auth Service - Firebase Phone Auth + Anonymous Auth
-// ✅ Dipakai oleh: login_screen, otp_screen, splash_screen, settings_screen
-// lib/services/auth_service.dart
 
 import 'package:firebase_auth/firebase_auth.dart';
 

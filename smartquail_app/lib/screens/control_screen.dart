@@ -1,5 +1,7 @@
 // [INDO] Control Screen - FIXED VERSION
-// NO DELAY, NO BUZZER, INSTANT UPDATE
+// ✅ FIX: Path Firebase disinkronkan dengan ESP32
+//   - Baca sensor dari /sensor_data (bukan /smartquail/devices/esp32-01)
+//   - Tulis kontrol ke /controls (bukan /smartquail/controls)
 // lib/screens/control_screen.dart
 
 import 'package:flutter/material.dart';
@@ -19,7 +21,6 @@ class _ControlScreenState extends State<ControlScreen> {
   bool isAutoMode = true;
   bool isFanOn = false;
   bool isPumpOn = false;
-  bool isExhaustOn = false;
 
   double temperature = 0;
   double humidity = 0;
@@ -27,23 +28,29 @@ class _ControlScreenState extends State<ControlScreen> {
   int amonia = 0;
   bool isOnline = false;
 
-  StreamSubscription<DatabaseEvent>? _deviceSubscription;
+  StreamSubscription<DatabaseEvent>? _sensorSubscription;
+  StreamSubscription<DatabaseEvent>? _controlSubscription;
 
   @override
   void initState() {
     super.initState();
-    _listenToDevice();
+    _listenToSensorData();
+    _listenToControls();
   }
 
   @override
   void dispose() {
-    _deviceSubscription?.cancel();
+    _sensorSubscription?.cancel();
+    _controlSubscription?.cancel();
     super.dispose();
   }
 
-  void _listenToDevice() {
-    _deviceSubscription = _database
-        .child('smartquail/devices/esp32-01')
+  // ════════════════════════════════════════════
+  // ✅ BACA sensor data dari /sensor_data
+  // ════════════════════════════════════════════
+  void _listenToSensorData() {
+    _sensorSubscription = _database
+        .child('sensor_data')  // ✅ FIXED
         .onValue
         .listen((DatabaseEvent event) {
       final data = event.snapshot.value as Map<dynamic, dynamic>?;
@@ -52,8 +59,9 @@ class _ControlScreenState extends State<ControlScreen> {
           temperature = (data['temperature'] ?? 0).toDouble();
           humidity = (data['humidity'] ?? 0).toDouble();
           thi = (data['thi'] ?? 0).toDouble();
-          amonia = (data['amonia'] ?? 0).toInt();
+          amonia = (data['ammonia'] ?? data['amonia'] ?? 0).toInt();
           isOnline = data['online'] ?? false;
+          // Baca status relay dari sensor_data (ESP32 yang report)
           isFanOn = data['relay_fan'] ?? false;
           isPumpOn = data['relay_pump'] ?? false;
           isAutoMode = data['auto_mode'] ?? true;
@@ -62,14 +70,35 @@ class _ControlScreenState extends State<ControlScreen> {
     });
   }
 
-  // INSTANT UPDATE - No loading, no delay
+  // ════════════════════════════════════════════
+  // ✅ LISTEN kontrol dari /controls (sinkron dengan ESP32)
+  // ════════════════════════════════════════════
+  void _listenToControls() {
+    _controlSubscription = _database
+        .child('controls')  // ✅ FIXED
+        .onValue
+        .listen((DatabaseEvent event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data != null && mounted) {
+        setState(() {
+          // Update dari controls (yang Flutter tulis, ESP32 baca)
+          isAutoMode = data['auto_mode'] ?? isAutoMode;
+          isFanOn = data['fan'] ?? isFanOn;
+          isPumpOn = data['pump'] ?? isPumpOn;
+        });
+      }
+    });
+  }
+
+  // ════════════════════════════════════════════
+  // ✅ TULIS kontrol ke /controls (ESP32 akan baca)
+  // ════════════════════════════════════════════
   void _updateControl(String key, dynamic value) {
-    _database.child('smartquail/controls/$key').set(value);
-    _database.child('smartquail/controls/last_updated').set(ServerValue.timestamp);
+    _database.child('controls/$key').set(value);  // ✅ FIXED
   }
 
   void _triggerFeeding() {
-    _database.child('smartquail/controls/feed_now').set(true);
+    _database.child('controls/feed_now').set(true);  // ✅ FIXED
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('🍽️ Feeding triggered!'),
@@ -77,9 +106,7 @@ class _ControlScreenState extends State<ControlScreen> {
         duration: Duration(seconds: 2),
       ),
     );
-    Future.delayed(const Duration(seconds: 3), () {
-      _database.child('smartquail/controls/feed_now').set(false);
-    });
+    // ESP32 akan reset feed_now ke false setelah selesai
   }
 
   @override
@@ -128,7 +155,7 @@ class _ControlScreenState extends State<ControlScreen> {
   Widget _buildHeader() {
     return Row(
       children: [
-        Icon(Icons.tune_rounded, color: Color(0xFF5856D6), size: 26),
+        const Icon(Icons.tune_rounded, color: Color(0xFF5856D6), size: 26),
         const SizedBox(width: 10),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,13 +225,13 @@ class _ControlScreenState extends State<ControlScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: Color(0xFFFF9500), size: 22),
+          const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF9500), size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Mode Manual Aktif',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
@@ -263,14 +290,14 @@ class _ControlScreenState extends State<ControlScreen> {
                   const Text(
                     'Mode Otomatis',
                     style: TextStyle(
-                      fontWeight: FontWeight.w600,
                       fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
-                    isAutoMode ? 'Dikontrol oleh THI' : 'Kontrol manual',
+                    isAutoMode ? 'Kontrol berdasarkan THI' : 'Kontrol manual aktif',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       color: Colors.grey[600],
                     ),
                   ),
@@ -304,12 +331,12 @@ class _ControlScreenState extends State<ControlScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.sensors_rounded, color: Color(0xFF007AFF), size: 18),
-              const SizedBox(width: 8),
-              const Text(
-                'Monitor Sensor',
+              SizedBox(width: 8),
+              Text(
+                'Sensor Monitor',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ],
@@ -317,13 +344,13 @@ class _ControlScreenState extends State<ControlScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _sensorItem('Suhu', '${temperature.toStringAsFixed(1)}°', Icons.thermostat_rounded, const Color(0xFFFF9500))),
-              const SizedBox(width: 6),
-              Expanded(child: _sensorItem('Humid', '${humidity.toStringAsFixed(0)}%', Icons.water_drop_rounded, const Color(0xFF007AFF))),
-              const SizedBox(width: 6),
-              Expanded(child: _sensorItem('THI', thi.toStringAsFixed(1), Icons.speed_rounded, const Color(0xFF5856D6))),
-              const SizedBox(width: 6),
-              Expanded(child: _sensorItem('NH₃', '$amonia', Icons.cloud_rounded, amonia > 50 ? Colors.red : (amonia > 25 ? Colors.orange : const Color(0xFF34C759)))),
+              _sensorChip('🌡️ ${temperature.toStringAsFixed(1)}°C'),
+              const SizedBox(width: 8),
+              _sensorChip('💧 ${humidity.toStringAsFixed(0)}%'),
+              const SizedBox(width: 8),
+              _sensorChip('📊 THI ${thi.toStringAsFixed(1)}'),
+              const SizedBox(width: 8),
+              _sensorChip('☁️ $amonia ppm'),
             ],
           ),
         ],
@@ -331,26 +358,19 @@ class _ControlScreenState extends State<ControlScreen> {
     );
   }
 
-  Widget _sensorItem(String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
-          ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 9, color: Colors.grey[600]),
-          ),
-        ],
+  Widget _sensorChip(String text) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F7),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -368,11 +388,11 @@ class _ControlScreenState extends State<ControlScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              Icon(Icons.settings_remote_rounded, color: Color(0xFF5856D6), size: 18),
-              const SizedBox(width: 8),
-              const Text(
+              Icon(Icons.power_settings_new_rounded, color: Color(0xFF34C759), size: 18),
+              SizedBox(width: 8),
+              Text(
                 'Kontrol Perangkat',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
@@ -380,8 +400,8 @@ class _ControlScreenState extends State<ControlScreen> {
           ),
           const SizedBox(height: 12),
           _buildControlTile(
-            label: 'Kipas Pendingin',
-            subtitle: 'Sirkulasi udara',
+            label: 'Kipas Utama',
+            subtitle: 'Sirkulasi udara kandang',
             icon: Icons.air_rounded,
             color: const Color(0xFF34C759),
             isOn: isFanOn,
@@ -402,19 +422,6 @@ class _ControlScreenState extends State<ControlScreen> {
             onChanged: (value) {
               setState(() => isPumpOn = value);
               _updateControl('pump', value);
-            },
-          ),
-          const SizedBox(height: 10),
-          _buildControlTile(
-            label: 'Exhaust Fan',
-            subtitle: 'Buang gas amonia',
-            icon: Icons.wind_power_rounded,
-            color: const Color(0xFF5856D6),
-            isOn: isExhaustOn,
-            enabled: !isAutoMode,
-            onChanged: (value) {
-              setState(() => isExhaustOn = value);
-              _updateControl('exhaust', value);
             },
           ),
         ],
@@ -486,11 +493,11 @@ class _ControlScreenState extends State<ControlScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.restaurant_rounded, color: Color(0xFFFF9500), size: 18),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Auto Feeder',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
@@ -531,11 +538,11 @@ class _ControlScreenState extends State<ControlScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.bolt_rounded, color: Color(0xFFFF9500), size: 18),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Quick Presets',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
@@ -554,12 +561,10 @@ class _ControlScreenState extends State<ControlScreen> {
                       isAutoMode = false;
                       isFanOn = false;
                       isPumpOn = false;
-                      isExhaustOn = false;
                     });
                     _updateControl('auto_mode', false);
                     _updateControl('fan', false);
                     _updateControl('pump', false);
-                    _updateControl('exhaust', false);
                   },
                 ),
               ),
@@ -574,12 +579,10 @@ class _ControlScreenState extends State<ControlScreen> {
                       isAutoMode = false;
                       isFanOn = true;
                       isPumpOn = false;
-                      isExhaustOn = false;
                     });
                     _updateControl('auto_mode', false);
                     _updateControl('fan', true);
                     _updateControl('pump', false);
-                    _updateControl('exhaust', false);
                   },
                 ),
               ),
@@ -594,12 +597,10 @@ class _ControlScreenState extends State<ControlScreen> {
                       isAutoMode = false;
                       isFanOn = true;
                       isPumpOn = true;
-                      isExhaustOn = true;
                     });
                     _updateControl('auto_mode', false);
                     _updateControl('fan', true);
                     _updateControl('pump', true);
-                    _updateControl('exhaust', true);
                   },
                 ),
               ),

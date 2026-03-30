@@ -1,3 +1,6 @@
+// Login Screen - Fixed navigation for AuthWrapper pattern
+// lib/screens/login_screen.dart
+
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
@@ -58,7 +61,6 @@ class _LoginScreenState extends State<LoginScreen> {
       onCodeSent: (verificationId) {
         setState(() => _isLoading = false);
         
-        // Navigate to OTP screen
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -86,10 +88,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result['success']) {
-      // Navigate to dashboard
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      }
+      // ✅ FIX: Tidak perlu navigate manual
+      // AuthWrapper di main.dart otomatis detect auth state change
+      // dan akan menampilkan MainNavigation
+      // 
+      // Sebelumnya: Navigator.pushReplacementNamed(context, '/dashboard');
+      // Sekarang: cukup biarkan AuthWrapper handle
     } else {
       setState(() => _errorText = result['error']);
     }

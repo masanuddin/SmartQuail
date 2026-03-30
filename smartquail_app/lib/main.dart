@@ -1,13 +1,13 @@
 // SmartQuail Mobile App
 // IoT Monitoring untuk Kandang Puyuh Cerdas
-// UPDATED: Firebase Auth + Realtime Database Integration
+// ✅ FIXED: Import paths corrected
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-import 'screens/dashboard_screen_v2.dart';
+import 'screens/dashboard_screen.dart';   
 import 'screens/history_screen.dart';
 import 'screens/control_screen.dart';
 import 'screens/settings_screen.dart';
@@ -63,11 +63,7 @@ class SmartQuailApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const AuthWrapper(),
-        '/login': (context) => const LoginScreen(),
-      },
+      home: const AuthWrapper(),
     );
   }
 }
@@ -84,7 +80,7 @@ class AuthWrapper extends StatelessWidget {
       stream: AuthService.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
+          return const _SplashLoading();
         }
 
         if (snapshot.hasData) {
@@ -98,10 +94,10 @@ class AuthWrapper extends StatelessWidget {
 }
 
 // ============================================================
-// SPLASH SCREEN
+// SPLASH LOADING (simple)
 // ============================================================
-class SplashScreen extends StatelessWidget {
-  const SplashScreen({super.key});
+class _SplashLoading extends StatelessWidget {
+  const _SplashLoading();
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +178,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const DashboardScreen(),
     const HistoryScreen(),
     const ControlScreen(),
-    const SettingsScreen(), // Settings dengan User Info + Logout
+    const SettingsScreen(),
   ];
 
   @override

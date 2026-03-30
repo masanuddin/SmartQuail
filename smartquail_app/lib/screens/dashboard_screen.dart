@@ -1,12 +1,12 @@
 // [INDO] Dashboard Screen - FIXED VERSION
-// Responsive, Real-time, No Overflow
+// Path Firebase disinkronkan dengan ESP32 SmartQuail v5.0
 // lib/screens/dashboard_screen.dart
 
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
-import '../widgets/kpi_card_v1.dart';
-import '../../widgets/thi_gauge.dart';
+import '../widgets/kpi_card.dart';
+import '../widgets/thi_gauge.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -45,8 +45,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _listenToFirebase() {
+    // ════════════════════════════════════════════
+    // ✅ FIX: Path disinkronkan dengan ESP32
+    // ESP32 menulis ke /sensor_data
+    // ════════════════════════════════════════════
     _dataSubscription = _database
-        .child('smartquail/devices/esp32-01')
+        .child('sensor_data')  // ✅ FIXED - sebelumnya 'smartquail/devices/esp32-01'
         .onValue
         .listen((DatabaseEvent event) {
       final data = event.snapshot.value as Map<dynamic, dynamic>?;
@@ -56,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           temperature = (data['temperature'] ?? 0).toDouble();
           humidity = (data['humidity'] ?? 0).toDouble();
           thi = (data['thi'] ?? 0).toDouble();
-          amonia = (data['amonia'] ?? 0).toInt();
+          amonia = (data['ammonia'] ?? data['amonia'] ?? 0).toInt(); // support kedua key
           relayFan = data['relay_fan'] ?? false;
           relayPump = data['relay_pump'] ?? false;
           autoMode = data['auto_mode'] ?? true;
@@ -110,7 +114,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            // Force refresh
             setState(() {});
           },
           child: LayoutBuilder(
@@ -314,7 +317,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
-      childAspectRatio: 2.4,  // Lebih lebar, lebih pendek
+      childAspectRatio: 2.4,
       children: [
         KPICard(
           icon: Icons.thermostat_rounded,
@@ -419,11 +422,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.power_settings_new, color: Colors.blue, size: 18),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Status Perangkat',
                 style: TextStyle(
                   fontSize: 14,
@@ -504,11 +507,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Column(
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.speed, color: Color(0xFF5856D6), size: 18),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'THI Monitor',
                 style: TextStyle(
                   fontSize: 14,

@@ -1,8 +1,9 @@
-// [INDO] History Screen - Halaman riwayat data dan grafik
-// Menampilkan trend suhu, kelembaban, dan THI dalam bentuk chart
+// History Screen - Menampilkan data riwayat dari Firebase
+// Path: lib/screens/history_screen.dart
 
 import 'package:flutter/material.dart';
-import 'dart:math';
+import 'package:fl_chart/fl_chart.dart';
+import '../services/history_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -12,25 +13,57 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  String selectedPeriod = '24 Jam';
-  final List<String> periods = ['1 Jam', '24 Jam', '7 Hari', '30 Hari'];
-
-  // [INDO] Data dummy untuk chart (ganti dengan data  nanti)
-  List<double> temperatureData = [];
-  List<double> humidityData = [];
-  List<double> thiData = [];
+  // Tab yang aktif: 0=1Jam, 1=24Jam, 2=7Hari, 3=30Hari
+  int _selectedPeriod = 1; // Default 24 Jam
+  
+  List<HistoryData> _historyData = [];
+  HistoryStats? _stats;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _generateDummyData();
+    _loadData();
   }
 
-  void _generateDummyData() {
-    final random = Random();
-    temperatureData = List.generate(24, (i) => 25 + random.nextDouble() * 8);
-    humidityData = List.generate(24, (i) => 55 + random.nextDouble() * 30);
-    thiData = List.generate(24, (i) => 68 + random.nextDouble() * 20);
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      List<HistoryData> data;
+      
+      switch (_selectedPeriod) {
+        case 0:
+          data = await HistoryService.getLastHour();
+          break;
+        case 1:
+          data = await HistoryService.getLast24Hours();
+          break;
+        case 2:
+          data = await HistoryService.getLast7Days();
+          break;
+        case 3:
+          data = await HistoryService.getLast30Days();
+          break;
+        default:
+          data = await HistoryService.getLast24Hours();
+      }
+
+      setState(() {
+        _historyData = data;
+        _stats = HistoryService.calculateStats(data);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Gagal memuat data: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -38,52 +71,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                _buildHeader(),
-                const SizedBox(height: 20),
-
-                // Period Filter
-                _buildPeriodFilter(),
-                const SizedBox(height: 20),
-
-                // Temperature Chart
-                _buildChartCard(
-                  title: 'Suhu',
-                  icon: Icons.thermostat_rounded,
-                  color: const Color(0xFFFF9500),
-                  data: temperatureData,
-                  unit: '°C',
-                  minY: 20,
-                  maxY: 40,
-                ),
-                const SizedBox(height: 16),
-
-                // Humidity Chart
-                _buildChartCard(
-                  title: 'Kelembaban',
-                  icon: Icons.water_drop_rounded,
-                  color: const Color(0xFF007AFF),
-                  data: humidityData,
-                  unit: '%',
-                  minY: 40,
-                  maxY: 100,
-                ),
-                const SizedBox(height: 16),
-
-                // THI Chart
-                _buildTHIChartCard(),
-                const SizedBox(height: 20),
-
-                // Statistics
-                _buildStatistics(),
-              ],
+        child: RefreshIndicator(
+          onRefresh: _loadData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 16),
+                  _buildPeriodSelector(),
+                  const SizedBox(height: 20),
+                  
+                  if (_isLoading)
+                    _buildLoadingState()
+                  else if (_errorMessage != null)
+                    _buildErrorState()
+                  else if (_historyData.isEmpty)
+                    _buildEmptyState()
+                  else ...[
+                    _buildTemperatureChart(),
+                    const SizedBox(height: 16),
+                    _buildHumidityChart(),
+                    const SizedBox(height: 16),
+                    _buildThiChart(),
+                    const SizedBox(height: 16),
+                    _buildStatisticsCard(),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
@@ -92,14 +110,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildHeader() {
-    return const Row(
+    return Row(
       children: [
-        Icon(Icons.show_chart_rounded, color: Color(0xFF007AFF), size: 28),
-        SizedBox(width: 12),
+        const Icon(Icons.show_chart_rounded, color: Color(0xFF007AFF), size: 28),
+        const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Riwayat Data',
               style: TextStyle(
                 fontSize: 24,
@@ -111,7 +129,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               'Analisis trend suhu & kelembaban',
               style: TextStyle(
                 fontSize: 13,
-                color: Color(0xFF8E8E93),
+                color: Colors.grey.shade600,
               ),
             ),
           ],
@@ -120,62 +138,181 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildPeriodFilter() {
+  Widget _buildPeriodSelector() {
+    final periods = ['1 Jam', '24 Jam', '7 Hari', '30 Hari'];
+    
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-          ),
-        ],
       ),
       child: Row(
-        children: periods.map((period) {
-          final isSelected = period == selectedPeriod;
+        children: List.generate(periods.length, (index) {
+          final isSelected = _selectedPeriod == index;
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => selectedPeriod = period),
+              onTap: () {
+                if (_selectedPeriod != index) {
+                  setState(() => _selectedPeriod = index);
+                  _loadData();
+                }
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFF007AFF) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  period,
+                  periods[index],
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF8E8E93),
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                    color: isSelected ? Colors.white : const Color(0xFF8E8E93),
                   ),
                 ),
               ),
             ),
           );
-        }).toList(),
+        }),
       ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      height: 300,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF007AFF)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Memuat data riwayat...',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Container(
+      height: 300,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage ?? 'Terjadi kesalahan',
+            style: TextStyle(color: Colors.grey.shade600),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadData,
+            child: const Text('Coba Lagi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      height: 300,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            'Belum ada data riwayat',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Data akan muncul setelah ESP32\nmenyimpan history pertama',
+            style: TextStyle(color: Colors.grey.shade500),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTemperatureChart() {
+    return _buildChartCard(
+      title: 'Suhu',
+      icon: Icons.thermostat_outlined,
+      iconColor: const Color(0xFFFF9500),
+      avgValue: 'Avg: ${_stats?.avgTemp.toStringAsFixed(1) ?? '-'}°C',
+      avgColor: const Color(0xFFFF9500),
+      minValue: _stats?.minTemp.toStringAsFixed(1) ?? '-',
+      maxValue: _stats?.maxTemp.toStringAsFixed(1) ?? '-',
+      chart: _buildLineChart(
+        data: _historyData.map((e) => e.temperature).toList(),
+        lineColor: const Color(0xFFFF9500),
+        fillColor: const Color(0xFFFF9500).withOpacity(0.1),
+      ),
+    );
+  }
+
+  Widget _buildHumidityChart() {
+    return _buildChartCard(
+      title: 'Kelembaban',
+      icon: Icons.water_drop_outlined,
+      iconColor: const Color(0xFF007AFF),
+      avgValue: 'Avg: ${_stats?.avgHumidity.toStringAsFixed(1) ?? '-'}%',
+      avgColor: const Color(0xFF007AFF),
+      minValue: _stats?.minHumidity.toStringAsFixed(1) ?? '-',
+      maxValue: _stats?.maxHumidity.toStringAsFixed(1) ?? '-',
+      chart: _buildLineChart(
+        data: _historyData.map((e) => e.humidity).toList(),
+        lineColor: const Color(0xFF007AFF),
+        fillColor: const Color(0xFF007AFF).withOpacity(0.1),
+      ),
+    );
+  }
+
+  Widget _buildThiChart() {
+    return _buildChartCard(
+      title: 'THI Index',
+      icon: Icons.speed_outlined,
+      iconColor: const Color(0xFF5856D6),
+      avgValue: 'Avg: ${_stats?.avgThi.toStringAsFixed(1) ?? '-'}',
+      avgColor: const Color(0xFF5856D6),
+      minValue: null,
+      maxValue: null,
+      chart: _buildThiZoneChart(),
+      showLegend: true,
     );
   }
 
   Widget _buildChartCard({
     required String title,
     required IconData icon,
-    required Color color,
-    required List<double> data,
-    required String unit,
-    required double minY,
-    required double maxY,
+    required Color iconColor,
+    required String avgValue,
+    required Color avgColor,
+    required String? minValue,
+    required String? maxValue,
+    required Widget chart,
+    bool showLegend = false,
   }) {
-    final avg = data.isNotEmpty ? data.reduce((a, b) => a + b) / data.length : 0;
-    final min = data.isNotEmpty ? data.reduce((a, b) => a < b ? a : b) : 0;
-    final max = data.isNotEmpty ? data.reduce((a, b) => a > b ? a : b) : 0;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -197,7 +334,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             children: [
               Row(
                 children: [
-                  Icon(icon, color: color, size: 20),
+                  Icon(icon, color: iconColor, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     title,
@@ -210,133 +347,229 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
               ),
               Text(
-                'Avg: ${avg.toStringAsFixed(1)}$unit',
+                avgValue,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: color,
+                  color: avgColor,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-
-          // Simple Chart (Custom Paint)
+          
+          // Chart
           SizedBox(
-            height: 120,
-            child: CustomPaint(
-              size: const Size(double.infinity, 120),
-              painter: SimpleChartPainter(
-                data: data,
-                color: color,
-                minY: minY,
-                maxY: maxY,
-              ),
-            ),
+            height: 160,
+            child: chart,
           ),
-          const SizedBox(height: 12),
-
-          // Min/Max
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Min: ${min.toStringAsFixed(1)}$unit',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF8E8E93)),
-              ),
-              Text(
-                'Max: ${max.toStringAsFixed(1)}$unit',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF8E8E93)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTHIChartCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.speed_rounded, color: Color(0xFF5856D6), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'THI Index',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1D1D1F),
+          
+          // Min/Max footer
+          if (minValue != null && maxValue != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Min: $minValue${title == 'Kelembaban' ? '%' : '°C'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // THI Chart with zones
-          SizedBox(
-            height: 140,
-            child: CustomPaint(
-              size: const Size(double.infinity, 140),
-              painter: THIChartPainter(data: thiData),
+                Text(
+                  'Max: $maxValue${title == 'Kelembaban' ? '%' : '°C'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-
-          // Zone Legend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _zoneLegend('Normal', const Color(0xFF34C759)),
-              _zoneLegend('Warning', const Color(0xFFFF9500)),
-              _zoneLegend('Danger', const Color(0xFFFF3B30)),
-            ],
-          ),
+          ],
+          
+          // THI Legend
+          if (showLegend) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLegendItem('Normal', const Color(0xFF34C759)),
+                const SizedBox(width: 16),
+                _buildLegendItem('Warning', const Color(0xFFFF9500)),
+                const SizedBox(width: 16),
+                _buildLegendItem('Danger', const Color(0xFFFF3B30)),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _zoneLegend(String label, Color color) {
+  Widget _buildLegendItem(String label, Color color) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 12,
           height: 12,
           decoration: BoxDecoration(
             color: color.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(3),
             border: Border.all(color: color, width: 1.5),
+            borderRadius: BorderRadius.circular(3),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: Color(0xFF8E8E93),
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatistics() {
+  Widget _buildLineChart({
+    required List<double> data,
+    required Color lineColor,
+    required Color fillColor,
+  }) {
+    if (data.isEmpty) {
+      return const Center(child: Text('Tidak ada data'));
+    }
+
+    final spots = data.asMap().entries.map((e) {
+      return FlSpot(e.key.toDouble(), e.value);
+    }).toList();
+
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 10,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: Colors.grey.shade200,
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: const FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.3,
+            color: lineColor,
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: fillColor,
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (touchedSpot) => Colors.black87,
+            getTooltipItems: (spots) {
+              return spots.map((spot) {
+                return LineTooltipItem(
+                  spot.y.toStringAsFixed(1),
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThiZoneChart() {
+    if (_historyData.isEmpty) {
+      return const Center(child: Text('Tidak ada data'));
+    }
+
+    final spots = _historyData.asMap().entries.map((e) {
+      return FlSpot(e.key.toDouble(), e.value.thi);
+    }).toList();
+
+    return LineChart(
+      LineChartData(
+        minY: 60,
+        maxY: 95,
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        // Zone backgrounds
+        rangeAnnotations: RangeAnnotations(
+          horizontalRangeAnnotations: [
+            // Normal zone (< 72)
+            HorizontalRangeAnnotation(
+              y1: 60,
+              y2: 72,
+              color: const Color(0xFF34C759).withOpacity(0.15),
+            ),
+            // Warning zone (72-78)
+            HorizontalRangeAnnotation(
+              y1: 72,
+              y2: 78,
+              color: const Color(0xFFFF9500).withOpacity(0.15),
+            ),
+            // Danger zone (> 78)
+            HorizontalRangeAnnotation(
+              y1: 78,
+              y2: 95,
+              color: const Color(0xFFFF3B30).withOpacity(0.15),
+            ),
+          ],
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.3,
+            color: const Color(0xFF5856D6),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (touchedSpot) => Colors.black87,
+            getTooltipItems: (spots) {
+              return spots.map((spot) {
+                String status = 'Normal';
+                if (spot.y > 78) {
+                  status = 'Danger';
+                } else if (spot.y > 72) {
+                  status = 'Warning';
+                }
+                return LineTooltipItem(
+                  'THI: ${spot.y.toStringAsFixed(1)}\n$status',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatisticsCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -354,7 +587,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.analytics_rounded, color: Color(0xFF007AFF), size: 20),
+              Icon(Icons.analytics_outlined, color: Color(0xFF007AFF), size: 20),
               SizedBox(width: 8),
               Text(
                 'Statistik',
@@ -369,15 +602,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _statItem('Rata-rata Suhu', '27.8°C', Icons.thermostat)),
-              Expanded(child: _statItem('Rata-rata RH', '70%', Icons.water_drop)),
+              Expanded(
+                child: _buildStatItem(
+                  icon: Icons.thermostat_outlined,
+                  value: '${_stats?.avgTemp.toStringAsFixed(1) ?? '-'}°C',
+                  label: 'Rata-rata Suhu',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatItem(
+                  icon: Icons.water_drop_outlined,
+                  value: '${_stats?.avgHumidity.toStringAsFixed(0) ?? '-'}%',
+                  label: 'Rata-rata RH',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _statItem('Rata-rata THI', '74.5', Icons.speed)),
-              Expanded(child: _statItem('Cooling Events', '12x', Icons.air)),
+              Expanded(
+                child: _buildStatItem(
+                  icon: Icons.speed_outlined,
+                  value: _stats?.avgThi.toStringAsFixed(1) ?? '-',
+                  label: 'Rata-rata THI',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatItem(
+                  icon: Icons.ac_unit_outlined,
+                  value: '${_stats?.coolingEvents ?? 0}x',
+                  label: 'Cooling Events',
+                ),
+              ),
             ],
           ),
         ],
@@ -385,10 +644,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _statItem(String label, String value, IconData icon) {
+  Widget _buildStatItem({
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF5F5F7),
         borderRadius: BorderRadius.circular(12),
@@ -396,137 +658,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF8E8E93)),
+          Icon(icon, color: const Color(0xFF8E8E93), size: 20),
           const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1D1D1F),
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF8E8E93),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
             ),
           ),
         ],
       ),
     );
   }
-}
-
-// [INDO] Custom Painter untuk chart sederhana
-class SimpleChartPainter extends CustomPainter {
-  final List<double> data;
-  final Color color;
-  final double minY;
-  final double maxY;
-
-  SimpleChartPainter({
-    required this.data,
-    required this.color,
-    required this.minY,
-    required this.maxY,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (data.isEmpty) return;
-
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [color.withOpacity(0.3), color.withOpacity(0.0)],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    final path = Path();
-    final fillPath = Path();
-
-    final xStep = size.width / (data.length - 1);
-    final yRange = maxY - minY;
-
-    for (var i = 0; i < data.length; i++) {
-      final x = i * xStep;
-      final y = size.height - ((data[i] - minY) / yRange * size.height);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-        fillPath.moveTo(x, size.height);
-        fillPath.lineTo(x, y);
-      } else {
-        path.lineTo(x, y);
-        fillPath.lineTo(x, y);
-      }
-    }
-
-    fillPath.lineTo(size.width, size.height);
-    fillPath.close();
-
-    canvas.drawPath(fillPath, fillPaint);
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-// [INDO] Custom Painter untuk THI chart dengan zone warna
-class THIChartPainter extends CustomPainter {
-  final List<double> data;
-
-  THIChartPainter({required this.data});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Draw zones
-    final normalZone = Rect.fromLTWH(0, size.height * 0.6, size.width, size.height * 0.4);
-    final warningZone = Rect.fromLTWH(0, size.height * 0.3, size.width, size.height * 0.3);
-    final dangerZone = Rect.fromLTWH(0, 0, size.width, size.height * 0.3);
-
-    canvas.drawRect(normalZone, Paint()..color = const Color(0xFF34C759).withOpacity(0.15));
-    canvas.drawRect(warningZone, Paint()..color = const Color(0xFFFF9500).withOpacity(0.15));
-    canvas.drawRect(dangerZone, Paint()..color = const Color(0xFFFF3B30).withOpacity(0.15));
-
-    if (data.isEmpty) return;
-
-    // Draw line
-    final paint = Paint()
-      ..color = const Color(0xFF5856D6)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path();
-    final xStep = size.width / (data.length - 1);
-    const minY = 60.0;
-    const maxY = 100.0;
-    final yRange = maxY - minY;
-
-    for (var i = 0; i < data.length; i++) {
-      final x = i * xStep;
-      final y = size.height - ((data[i] - minY) / yRange * size.height);
-
-      if (i == 0) {
-        path.moveTo(x, y.clamp(0, size.height));
-      } else {
-        path.lineTo(x, y.clamp(0, size.height));
-      }
-    }
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
