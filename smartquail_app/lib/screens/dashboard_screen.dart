@@ -165,7 +165,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: const Color(0xFF007AFF).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text('🐦', style: TextStyle(fontSize: 24)),
+              child: Image.asset(
+                'assets/images/smartquail.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+              ),
             ),
             const SizedBox(width: 12),
             Column(

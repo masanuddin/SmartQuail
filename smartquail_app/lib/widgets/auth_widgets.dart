@@ -476,38 +476,17 @@ class SmartQuailLogo extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF5A623), // SmartQuail orange
-            borderRadius: BorderRadius.circular(size * 0.22),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFF5A623).withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              '🐦',
-              style: TextStyle(fontSize: size * 0.5),
-            ),
-          ),
+        // Logo image
+        Image.asset(
+          'assets/images/smartquail.png',
+          width: size * 2,    // dikali 2 biar lebih besar, sesuaikan sesukamu
+          height: size * 2,
+          fit: BoxFit.contain,
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'SmartQuail',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: AppleColors.label,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 4),
+
+        const SizedBox(height: 8),
+
+        // Subtitle (teks "SmartQuail" dihapus karena sudah ada di gambar)
         const Text(
           'IoT Climate Control',
           style: TextStyle(
