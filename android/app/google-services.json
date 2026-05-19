@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "406727161324",
+    "firebase_url": "https://smartquail-18658-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "smartquail-18658",
+    "storage_bucket": "smartquail-18658.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:406727161324:android:398efa5da2b7103ebb3cc9",
+        "android_client_info": {
+          "package_name": "com.example.smartquail_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1WMZCjkk2n2MbNH7K-18Dn2xu0Qo1SfU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
