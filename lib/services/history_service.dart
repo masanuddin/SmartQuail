@@ -22,6 +22,15 @@ class HistoryData {
     required this.fan,
     required this.pump,
   });
+
+  // ✅ Validasi: data dianggap valid jika sensor memberikan nilai masuk akal
+  bool get isValid =>
+      temperature > 5.0 &&
+      temperature < 60.0 &&
+      humidity > 5.0 &&
+      humidity <= 100.0 &&
+      thi > 40.0 &&
+      thi < 110.0;
 }
 
 class HistoryStats {
@@ -48,102 +57,76 @@ class HistoryStats {
 
 class HistoryService {
   static final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
-  
-  // ✅ Path yang sama dengan ESP32
   static const String _historyPath = 'history';
 
   // ════════════════════════════════════════════
   //  Ambil data berdasarkan periode
   // ════════════════════════════════════════════
 
-  /// Data 1 jam terakhir
   static Future<List<HistoryData>> getLastHour() async {
     final now = DateTime.now();
-    final dateStr = _formatDate(now);
-    final data = await _getDateData(dateStr);
-    
-    // Filter hanya 1 jam terakhir (12 data points @ 5 menit)
-    if (data.length > 12) {
-      return data.sublist(data.length - 12);
-    }
+    final data = await _getDateData(_formatDate(now));
+    if (data.length > 12) return data.sublist(data.length - 12);
     return data;
   }
 
-  /// Data 24 jam terakhir
   static Future<List<HistoryData>> getLast24Hours() async {
     final now = DateTime.now();
     final yesterday = now.subtract(const Duration(days: 1));
-    
+
     List<HistoryData> allData = [];
-    
-    // Ambil data hari ini
     allData.addAll(await _getDateData(_formatDate(now)));
-    
-    // Ambil data kemarin (jika perlu)
     if (now.hour < 24) {
       final yesterdayData = await _getDateData(_formatDate(yesterday));
       allData.insertAll(0, yesterdayData);
     }
-    
-    // Batasi 288 data points (24 jam * 12 per jam)
+
     if (allData.length > 288) {
       allData = allData.sublist(allData.length - 288);
     }
-    
     return allData;
   }
 
-  /// Data 7 hari terakhir
   static Future<List<HistoryData>> getLast7Days() async {
     List<HistoryData> allData = [];
     final now = DateTime.now();
-    
     for (int i = 6; i >= 0; i--) {
       final date = now.subtract(Duration(days: i));
-      final dayData = await _getDateData(_formatDate(date));
-      allData.addAll(dayData);
+      allData.addAll(await _getDateData(_formatDate(date)));
     }
-    
     return allData;
   }
 
-  /// Data 30 hari terakhir
   static Future<List<HistoryData>> getLast30Days() async {
     List<HistoryData> allData = [];
     final now = DateTime.now();
-    
     for (int i = 29; i >= 0; i--) {
       final date = now.subtract(Duration(days: i));
       final dayData = await _getDateData(_formatDate(date));
-      // Ambil sample (setiap 6 data = tiap 30 menit) untuk 30 hari
       for (int j = 0; j < dayData.length; j += 6) {
         allData.add(dayData[j]);
       }
     }
-    
     return allData;
   }
 
   // ════════════════════════════════════════════
-  //  Helper: Ambil data per tanggal
+  //  Helper: Ambil & FILTER data per tanggal
   // ════════════════════════════════════════════
 
   static Future<List<HistoryData>> _getDateData(String dateStr) async {
     try {
       final snapshot = await _dbRef.child('$_historyPath/$dateStr').get();
-      
       if (!snapshot.exists) return [];
-      
+
       final data = Map<String, dynamic>.from(snapshot.value as Map);
       final List<HistoryData> result = [];
-      
-      // Sort by time key (e.g., "0730", "0735", "0800")
       final sortedKeys = data.keys.toList()..sort();
-      
+
       for (final timeKey in sortedKeys) {
         final entry = data[timeKey];
         if (entry is Map) {
-          result.add(HistoryData(
+          final point = HistoryData(
             time: timeKey,
             temperature: (entry['t'] ?? 0).toDouble(),
             humidity: (entry['h'] ?? 0).toDouble(),
@@ -151,10 +134,17 @@ class HistoryService {
             thi: (entry['thi'] ?? 0).toDouble(),
             fan: (entry['f'] ?? 0) == 1,
             pump: (entry['p'] ?? 0) == 1,
-          ));
+          );
+
+          // ✅ Filter data invalid (sensor belum ready / nilai 0)
+          if (point.isValid) {
+            result.add(point);
+          } else {
+            print('[HistoryService] Skip invalid: $dateStr/$timeKey '
+                't=${point.temperature}, h=${point.humidity}, thi=${point.thi}');
+          }
         }
       }
-      
       return result;
     } catch (e) {
       print('[HistoryService] Error loading $dateStr: $e');
@@ -163,11 +153,14 @@ class HistoryService {
   }
 
   // ════════════════════════════════════════════
-  //  Statistik
+  //  Statistik (hanya dari data valid)
   // ════════════════════════════════════════════
 
   static HistoryStats calculateStats(List<HistoryData> data) {
-    if (data.isEmpty) {
+    // ✅ Double-filter: pastikan tidak ada data invalid lolos ke statistik
+    final validData = data.where((d) => d.isValid).toList();
+
+    if (validData.isEmpty) {
       return HistoryStats(
         avgTemp: 0, minTemp: 0, maxTemp: 0,
         avgHumidity: 0, minHumidity: 0, maxHumidity: 0,
@@ -181,7 +174,7 @@ class HistoryService {
     int coolingEvents = 0;
     bool wasCooling = false;
 
-    for (final d in data) {
+    for (final d in validData) {
       sumTemp += d.temperature;
       sumHum += d.humidity;
       sumThi += d.thi;
@@ -191,14 +184,11 @@ class HistoryService {
       if (d.humidity < minHum) minHum = d.humidity;
       if (d.humidity > maxHum) maxHum = d.humidity;
 
-      // Count cooling events (fan atau pump nyala)
-      if ((d.fan || d.pump) && !wasCooling) {
-        coolingEvents++;
-      }
+      if ((d.fan || d.pump) && !wasCooling) coolingEvents++;
       wasCooling = d.fan || d.pump;
     }
 
-    final n = data.length;
+    final n = validData.length;
     return HistoryStats(
       avgTemp: sumTemp / n,
       minTemp: minTemp == double.infinity ? 0 : minTemp,

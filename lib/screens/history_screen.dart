@@ -13,9 +13,8 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  // Tab yang aktif: 0=1Jam, 1=24Jam, 2=7Hari, 3=30Hari
-  int _selectedPeriod = 1; // Default 24 Jam
-  
+  int _selectedPeriod = 1;
+
   List<HistoryData> _historyData = [];
   HistoryStats? _stats;
   bool _isLoading = true;
@@ -35,7 +34,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     try {
       List<HistoryData> data;
-      
+
       switch (_selectedPeriod) {
         case 0:
           data = await HistoryService.getLastHour();
@@ -84,7 +83,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   const SizedBox(height: 16),
                   _buildPeriodSelector(),
                   const SizedBox(height: 20),
-                  
                   if (_isLoading)
                     _buildLoadingState()
                   else if (_errorMessage != null)
@@ -127,10 +125,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
             Text(
               'Analisis trend suhu & kelembaban',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -140,7 +135,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildPeriodSelector() {
     final periods = ['1 Jam', '24 Jam', '7 Hari', '30 Hari'];
-    
+
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -193,10 +188,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF007AFF)),
           ),
           const SizedBox(height: 16),
-          Text(
-            'Memuat data riwayat...',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
+          Text('Memuat data riwayat...', style: TextStyle(color: Colors.grey.shade600)),
         ],
       ),
     );
@@ -217,10 +209,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadData,
-            child: const Text('Coba Lagi'),
-          ),
+          ElevatedButton(onPressed: _loadData, child: const Text('Coba Lagi')),
         ],
       ),
     );
@@ -319,16 +308,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -357,14 +342,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
-          // Chart
+          // ✅ ClipRect mencegah rangeAnnotation THI overflow ke card lain
           SizedBox(
             height: 160,
-            child: chart,
+            child: ClipRect(child: chart),
           ),
-          
-          // Min/Max footer
           if (minValue != null && maxValue != null) ...[
             const SizedBox(height: 12),
             Row(
@@ -372,23 +354,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
               children: [
                 Text(
                   'Min: $minValue${title == 'Kelembaban' ? '%' : '°C'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 Text(
                   'Max: $maxValue${title == 'Kelembaban' ? '%' : '°C'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
           ],
-          
-          // THI Legend
           if (showLegend) ...[
             const SizedBox(height: 12),
             Row(
@@ -420,13 +394,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       ],
     );
   }
@@ -436,24 +404,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
     required Color lineColor,
     required Color fillColor,
   }) {
-    if (data.isEmpty) {
-      return const Center(child: Text('Tidak ada data'));
-    }
+    if (data.isEmpty) return const Center(child: Text('Tidak ada data'));
 
     final spots = data.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), e.value);
     }).toList();
 
+    // Padding 15% dari range agar garis tidak kepotong ClipRect
+    final dataMin = data.reduce((a, b) => a < b ? a : b);
+    final dataMax = data.reduce((a, b) => a > b ? a : b);
+    final range = (dataMax - dataMin).clamp(1.0, double.infinity);
+    final pad = range * 0.15;
+
     return LineChart(
       LineChartData(
+        minY: dataMin - pad,
+        maxY: dataMax + pad,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 10,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Colors.grey.shade200,
-            strokeWidth: 1,
-          ),
+          horizontalInterval: (range / 3).clamp(1.0, double.infinity), // ✅ interval dinamis
+          getDrawingHorizontalLine: (value) =>
+              FlLine(color: Colors.grey.shade200, strokeWidth: 1),
         ),
         titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
@@ -465,27 +437,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
             color: lineColor,
             barWidth: 2.5,
             isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: fillColor,
+            // ✅ Double-guard agar dot benar-benar tidak muncul
+            dotData: FlDotData(
+              show: false,
+              checkToShowDot: (_, __) => false,
             ),
+            belowBarData: BarAreaData(show: true, color: fillColor),
           ),
         ],
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (touchedSpot) => Colors.black87,
-            getTooltipItems: (spots) {
-              return spots.map((spot) {
-                return LineTooltipItem(
-                  spot.y.toStringAsFixed(1),
-                  const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                );
-              }).toList();
-            },
+            tooltipMargin: 8,
+            fitInsideHorizontally: true, // ✅ tooltip tidak keluar kiri/kanan
+            fitInsideVertically: true,   // ✅ tooltip tidak keluar atas/bawah
+            getTooltipItems: (spots) => spots.map((spot) {
+              return LineTooltipItem(
+                spot.y.toStringAsFixed(1),
+                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              );
+            }).toList(),
           ),
         ),
       ),
@@ -493,40 +464,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildThiZoneChart() {
-    if (_historyData.isEmpty) {
-      return const Center(child: Text('Tidak ada data'));
-    }
+    if (_historyData.isEmpty) return const Center(child: Text('Tidak ada data'));
 
+    final thiValues = _historyData.map((e) => e.thi).toList();
     final spots = _historyData.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), e.value.thi);
     }).toList();
 
+    final dataMin = thiValues.reduce((a, b) => a < b ? a : b);
+    final dataMax = thiValues.reduce((a, b) => a > b ? a : b);
+    final range = (dataMax - dataMin).clamp(1.0, double.infinity);
+    final pad = range * 0.15;
+    final minY = dataMin - pad;
+    final maxY = dataMax + pad;
+
     return LineChart(
       LineChartData(
-        minY: 60,
-        maxY: 95,
+        minY: minY,
+        maxY: maxY,
         gridData: const FlGridData(show: false),
         titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
-        // Zone backgrounds
         rangeAnnotations: RangeAnnotations(
           horizontalRangeAnnotations: [
-            // Normal zone (< 72)
             HorizontalRangeAnnotation(
-              y1: 60,
+              y1: minY,
               y2: 72,
               color: const Color(0xFF34C759).withOpacity(0.15),
             ),
-            // Warning zone (72-78)
             HorizontalRangeAnnotation(
               y1: 72,
               y2: 78,
               color: const Color(0xFFFF9500).withOpacity(0.15),
             ),
-            // Danger zone (> 78)
             HorizontalRangeAnnotation(
               y1: 78,
-              y2: 95,
+              y2: maxY,
               color: const Color(0xFFFF3B30).withOpacity(0.15),
             ),
           ],
@@ -539,30 +512,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
             color: const Color(0xFF5856D6),
             barWidth: 2.5,
             isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
+            // ✅ Double-guard dot
+            dotData: FlDotData(
+              show: false,
+              checkToShowDot: (_, __) => false,
+            ),
           ),
         ],
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (touchedSpot) => Colors.black87,
-            getTooltipItems: (spots) {
-              return spots.map((spot) {
-                String status = 'Normal';
-                if (spot.y > 78) {
-                  status = 'Danger';
-                } else if (spot.y > 72) {
-                  status = 'Warning';
-                }
-                return LineTooltipItem(
-                  'THI: ${spot.y.toStringAsFixed(1)}\n$status',
-                  const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                );
-              }).toList();
-            },
+            tooltipMargin: 8,
+            fitInsideHorizontally: true, // ✅
+            fitInsideVertically: true,   // ✅
+            getTooltipItems: (spots) => spots.map((spot) {
+              String status = 'Normal';
+              if (spot.y > 78) status = 'Danger';
+              else if (spot.y > 72) status = 'Warning';
+              return LineTooltipItem(
+                'THI: ${spot.y.toStringAsFixed(1)}\n$status',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              );
+            }).toList(),
           ),
         ),
       ),
@@ -576,10 +551,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
         ],
       ),
       child: Column(
@@ -669,13 +641,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ],
       ),
     );

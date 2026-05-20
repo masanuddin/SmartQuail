@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import 'info_screen.dart'; // ✅ NEW
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -530,7 +531,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: 'Bantuan',
             value: '',
             showArrow: true,
-            onTap: () {},
+            // ✅ FIXED: navigate ke InfoScreen tab Bantuan
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const InfoScreen(initialTab: 0),
+              ),
+            ),
           ),
           _divider(),
           _buildSettingsItem(
@@ -538,7 +545,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: 'Kebijakan Privasi',
             value: '',
             showArrow: true,
-            onTap: () {},
+            // ✅ FIXED: navigate ke InfoScreen tab Kebijakan Privasi
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const InfoScreen(initialTab: 1),
+              ),
+            ),
           ),
         ],
       ),
