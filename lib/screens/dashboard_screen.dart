@@ -83,6 +83,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           });
         }
       }
+    }, onError: (error) {
+      if (mounted) {
+        setState(() => isOnline = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal terhubung ke server'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     });
   }
 

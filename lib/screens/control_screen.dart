@@ -61,6 +61,17 @@ class _ControlScreenState extends State<ControlScreen> {
           isPumpOn = data['relay_pump'] ?? false;
         });
       }
+    }, onError: (error) {
+      if (mounted) {
+        setState(() => isOnline = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal terhubung ke server'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     });
   }
 
@@ -68,7 +79,17 @@ class _ControlScreenState extends State<ControlScreen> {
   // ✅ TULIS kontrol ke /controls (ESP32 akan baca)
   // ════════════════════════════════════════════
   void _updateControl(String key, dynamic value) {
-    _database.child('controls/$key').set(value);  // ✅ FIXED
+    _database.child('controls/$key').set(value).catchError((error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal mengirim perintah. Periksa koneksi.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
   }
 
   void _triggerFeeding() {

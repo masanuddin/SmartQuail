@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import 'info_screen.dart'; // ✅ NEW
 
@@ -28,6 +29,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // App settings
   String language = 'Indonesia';
   String theme = 'Light';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      thiNormal = prefs.getDouble('thiNormal') ?? 65.0;
+      thiWarning = prefs.getDouble('thiWarning') ?? 78.0;
+      thiDanger = prefs.getDouble('thiDanger') ?? 85.0;
+      pushNotification = prefs.getBool('pushNotification') ?? true;
+      soundAlert = prefs.getBool('soundAlert') ?? true;
+      emailAlert = prefs.getBool('emailAlert') ?? false;
+      language = prefs.getString('language') ?? 'Indonesia';
+      theme = prefs.getString('theme') ?? 'Light';
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('thiNormal', thiNormal);
+    await prefs.setDouble('thiWarning', thiWarning);
+    await prefs.setDouble('thiDanger', thiDanger);
+    await prefs.setBool('pushNotification', pushNotification);
+    await prefs.setBool('soundAlert', soundAlert);
+    await prefs.setBool('emailAlert', emailAlert);
+    await prefs.setString('language', language);
+    await prefs.setString('theme', theme);
+  }
+
+  void _updateSetting(VoidCallback change) {
+    setState(() {
+      change();
+      _saveSettings();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +335,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             max: 75,
             color: const Color(0xFF34C759),
             description: 'THI di bawah nilai ini = Normal',
-            onChanged: (value) => setState(() => thiNormal = value),
+            onChanged: (value) => _updateSetting(() => thiNormal = value),
           ),
           const SizedBox(height: 20),
 
@@ -307,7 +347,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             max: 82,
             color: const Color(0xFFFF9500),
             description: 'THI di atas Normal sampai nilai ini = Warning',
-            onChanged: (value) => setState(() => thiWarning = value),
+            onChanged: (value) => _updateSetting(() => thiWarning = value),
           ),
           const SizedBox(height: 20),
 
@@ -319,14 +359,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             max: 95,
             color: const Color(0xFFFF3B30),
             description: 'THI di atas Warning = Danger',
-            onChanged: (value) => setState(() => thiDanger = value),
+            onChanged: (value) => _updateSetting(() => thiDanger = value),
           ),
 
           const SizedBox(height: 16),
           // Reset button
           TextButton(
             onPressed: () {
-              setState(() {
+              _updateSetting(() {
                 thiNormal = 65.0;
                 thiWarning = 78.0;
                 thiDanger = 85.0;
@@ -442,7 +482,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: 'Push Notification',
             subtitle: 'Terima notifikasi peringatan',
             value: pushNotification,
-            onChanged: (val) => setState(() => pushNotification = val),
+            onChanged: (val) => _updateSetting(() => pushNotification = val),
           ),
           _divider(),
           _buildSwitchItem(
@@ -450,7 +490,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: 'Suara Peringatan',
             subtitle: 'Bunyi saat kondisi bahaya',
             value: soundAlert,
-            onChanged: (val) => setState(() => soundAlert = val),
+            onChanged: (val) => _updateSetting(() => soundAlert = val),
           ),
           _divider(),
           _buildSwitchItem(
@@ -458,7 +498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: 'Email Alert',
             subtitle: 'Kirim laporan via email',
             value: emailAlert,
-            onChanged: (val) => setState(() => emailAlert = val),
+            onChanged: (val) => _updateSetting(() => emailAlert = val),
           ),
         ],
       ),
@@ -784,14 +824,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               title: const Text('🇮🇩 Indonesia'),
               onTap: () {
-                setState(() => language = 'Indonesia');
+                _updateSetting(() => language = 'Indonesia');
                 Navigator.pop(context);
               },
             ),
             ListTile(
               title: const Text('🇬🇧 English'),
               onTap: () {
-                setState(() => language = 'English');
+                _updateSetting(() => language = 'English');
                 Navigator.pop(context);
               },
             ),
@@ -816,7 +856,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: const Icon(Icons.light_mode),
               title: const Text('Light'),
               onTap: () {
-                setState(() => theme = 'Light');
+                _updateSetting(() => theme = 'Light');
                 Navigator.pop(context);
               },
             ),
@@ -824,7 +864,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: const Icon(Icons.dark_mode),
               title: const Text('Dark'),
               onTap: () {
-                setState(() => theme = 'Dark');
+                _updateSetting(() => theme = 'Dark');
                 Navigator.pop(context);
               },
             ),

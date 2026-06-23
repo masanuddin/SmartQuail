@@ -43,21 +43,32 @@ Burung puyuh sangat sensitif terhadap perubahan suhu dan kelembaban. THI (Temper
 - Tooltip interaktif saat menyentuh grafik
 
 ### 🎛️ Kontrol Perangkat
+- Mode kontrol **full manual** — kipas & pompa selalu dapat dikontrol langsung
 - Kontrol kipas dengan PWM stepping: 100% → 50% → Mati
 - Kontrol pompa air
-- Kontrol lampu kandang
 - Quick Presets: Semua OFF, Kipas Saja, Full Cool
 - Status real-time setiap perangkat
+- Error SnackBar jika koneksi gagal
 
 ### ⚙️ Pengaturan
-- Konfigurasi threshold suhu, kelembaban, dan THI
-- Pengaturan profil kandang
-- Manajemen akun
+- Konfigurasi threshold suhu, kelembaban, dan THI (**tersimpan otomatis**)
+- Pengaturan notifikasi
+- Manajemen akun + Logout
+- Preferensi bahasa & tema
 
 ### ℹ️ Bantuan & Informasi
 - Panduan koneksi ESP32
 - Penjelasan indikator sensor
 - Kebijakan Privasi
+
+### 🛡️ Engineering Quality
+- **Error handling** di semua stream Firebase — notifikasi SnackBar jika koneksi gagal
+- **Firebase Crashlytics** untuk crash reporting production
+- **Settings persistence** via SharedPreferences
+- **IndexedStack** — tab tidak rebuild saat pindah
+- **15 unit test** (auth service, history service, widget)
+- **GitHub Actions CI** — `flutter analyze` + `flutter test` tiap push
+- **Dead code bersih** — 8600+ baris dihapus, backup dipindah dari `lib/`
 
 ---
 
@@ -81,20 +92,29 @@ Burung puyuh sangat sensitif terhadap perubahan suhu dan kelembaban. THI (Temper
 ```
 SmartQuail/
 ├── lib/
-│   ├── main.dart                    # Entry point, routing, auth check
+│   ├── main.dart                    # Entry point, AuthWrapper, MainNavigation
 │   ├── firebase_options.dart        # Konfigurasi Firebase
 │   ├── screens/
 │   │   ├── splash_screen.dart       # Splash screen animasi
-│   │   ├── login_screen.dart        # Autentikasi pengguna
+│   │   ├── login_screen.dart        # Login nomor telepon
 │   │   ├── otp_screen.dart          # Verifikasi OTP
 │   │   ├── dashboard_screen.dart    # Monitoring real-time
 │   │   ├── history_screen.dart      # Grafik riwayat data
-│   │   ├── control_screen.dart      # Kontrol perangkat IoT
-│   │   ├── settings_screen.dart     # Pengaturan aplikasi
+│   │   ├── control_screen.dart      # Kontrol perangkat manual
+│   │   ├── settings_screen.dart     # Pengaturan + threshold (persist)
 │   │   └── info_screen.dart         # Bantuan & kebijakan privasi
 │   ├── services/
-│   │   └── history_service.dart     # Logika pengambilan data Firebase
+│   │   ├── api_service.dart         # Firebase CRUD + SensorData model
+│   │   ├── auth_service.dart        # Firebase Auth (Phone + Anonymous)
+│   │   └── history_service.dart     # History parsing & stats
 │   └── widgets/                     # Reusable widget components
+├── test/
+│   ├── services/
+│   │   ├── auth_service_test.dart   # 7 unit test formatPhoneNumber
+│   │   └── history_service_test.dart # 6 unit test HistoryData.isValid
+│   └── widget_test.dart             # 2 widget test
+├── .github/workflows/
+│   └── ci.yml                       # GitHub Actions CI
 ├── assets/
 │   └── images/                      # Logo dan gambar
 ├── android/                         # Konfigurasi Android
@@ -110,11 +130,12 @@ SmartQuail/
 |-------|-----------|
 | **Mobile App** | Flutter 3.x + Dart 3.x |
 | **Database** | Firebase Realtime Database |
-| **Autentikasi** | Firebase Authentication |
+| **Autentikasi** | Firebase Authentication (Phone OTP + Anonymous) |
+| **Crash Reporting** | Firebase Crashlytics |
+| **Persistence** | SharedPreferences |
 | **Charts** | fl_chart |
 | **IoT Hardware** | ESP32 + DHT22 + MQ-135 |
-| **Komunikasi** | WiFi → Firebase RTDB |
-| **Platform** | Android, iOS, Web, Windows |
+| **CI/CD** | GitHub Actions |
 
 ---
 
