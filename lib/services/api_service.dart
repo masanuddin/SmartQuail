@@ -91,16 +91,6 @@ class ApiService {
     }
   }
 
-  /// Set auto mode ON/OFF
-  Future<void> setAutoMode(bool value) async {
-    try {
-      await _dbRef.child('$_controlsPath/auto_mode').set(value);
-    } catch (e) {
-      print('[ApiService] Error setting auto mode: $e');
-      rethrow;
-    }
-  }
-
   /// Trigger feed sekarang (one-shot, ESP32 akan reset ke false)
   Future<void> triggerFeedNow() async {
     try {
@@ -180,7 +170,6 @@ class ApiService {
         thi: (data['thi'] ?? 0).toDouble(),
         relayFan: data['relay_fan'] ?? false,
         relayPump: data['relay_pump'] ?? false,
-        autoMode: data['auto_mode'] ?? false,
         online: data['online'] ?? false,
         hour: data['hour'] ?? 0,
         minute: data['minute'] ?? 0,
@@ -204,7 +193,6 @@ class SensorData {
   final double thi;
   final bool relayFan;
   final bool relayPump;
-  final bool autoMode;
   final bool online;
   final int hour;
   final int minute;
@@ -217,7 +205,6 @@ class SensorData {
     required this.thi,
     required this.relayFan,
     required this.relayPump,
-    required this.autoMode,
     required this.online,
     required this.hour,
     required this.minute,

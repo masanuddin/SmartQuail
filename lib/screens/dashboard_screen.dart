@@ -24,7 +24,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int amonia = 0;
   bool relayFan = false;
   bool relayPump = false;
-  bool autoMode = true;
   String systemStatus = 'normal';
   bool isOnline = false;
   DateTime lastUpdate = DateTime.now();
@@ -63,7 +62,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           amonia = (data['ammonia'] ?? data['amonia'] ?? 0).toInt(); // support kedua key
           relayFan = data['relay_fan'] ?? false;
           relayPump = data['relay_pump'] ?? false;
-          autoMode = data['auto_mode'] ?? true;
           isOnline = data['online'] ?? false;
           lastUpdate = DateTime.now();
           
@@ -184,10 +182,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 Text(
-                  autoMode ? 'Mode: AUTO' : 'Mode: MANUAL',
+                  isOnline ? 'Online' : 'Offline',
                   style: TextStyle(
                     fontSize: 12,
-                    color: autoMode ? Colors.green : Colors.orange,
+                    color: isOnline ? Colors.green : Colors.grey,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

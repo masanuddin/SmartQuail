@@ -23,7 +23,7 @@ SmartQuail adalah aplikasi mobile berbasis Flutter yang terhubung langsung denga
 
 ### Mengapa SmartQuail?
 
-Burung puyuh sangat sensitif terhadap perubahan suhu dan kelembaban. THI (Temperature Humidity Index) di atas 78 dapat menyebabkan *heat stress* yang berujung pada penurunan produksi telur hingga kematian. SmartQuail hadir sebagai solusi monitoring cerdas yang memberikan **notifikasi real-time** dan **kontrol otomatis** untuk menjaga kondisi kandang tetap optimal.
+Burung puyuh sangat sensitif terhadap perubahan suhu dan kelembaban. THI (Temperature Humidity Index) di atas 78 dapat menyebabkan *heat stress* yang berujung pada penurunan produksi telur hingga kematian. SmartQuail hadir sebagai solusi monitoring cerdas yang memberikan **notifikasi real-time** dan **kontrol perangkat** untuk menjaga kondisi kandang tetap optimal.
 
 ---
 
@@ -43,10 +43,10 @@ Burung puyuh sangat sensitif terhadap perubahan suhu dan kelembaban. THI (Temper
 - Tooltip interaktif saat menyentuh grafik
 
 ### 🎛️ Kontrol Perangkat
-- Toggle Manual / Auto Mode
 - Kontrol kipas dengan PWM stepping: 100% → 50% → Mati
-- Kontrol lampu kandang
 - Kontrol pompa air
+- Kontrol lampu kandang
+- Quick Presets: Semua OFF, Kipas Saja, Full Cool
 - Status real-time setiap perangkat
 
 ### ⚙️ Pengaturan
@@ -157,12 +157,11 @@ SmartQuail/
        "ammonia": 12.3,
        "timestamp": 1716178800000
      },
-     "controls": {
-       "fan_pwm": 100,
-       "lamp": false,
-       "pump": false,
-       "auto_mode": true
-     },
+      "controls": {
+        "fan_pwm": 100,
+        "lamp": false,
+        "pump": false
+      },
      "history": {
        "2026-05-20": { ... }
      }

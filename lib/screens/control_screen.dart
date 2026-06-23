@@ -18,7 +18,6 @@ class ControlScreen extends StatefulWidget {
 class _ControlScreenState extends State<ControlScreen> {
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
   
-  bool isAutoMode = true;
   bool isFanOn = false;
   bool isPumpOn = false;
 
@@ -29,19 +28,16 @@ class _ControlScreenState extends State<ControlScreen> {
   bool isOnline = false;
 
   StreamSubscription<DatabaseEvent>? _sensorSubscription;
-  StreamSubscription<DatabaseEvent>? _controlSubscription;
 
   @override
   void initState() {
     super.initState();
     _listenToSensorData();
-    _listenToControls();
   }
 
   @override
   void dispose() {
     _sensorSubscription?.cancel();
-    _controlSubscription?.cancel();
     super.dispose();
   }
 
@@ -61,30 +57,8 @@ class _ControlScreenState extends State<ControlScreen> {
           thi = (data['thi'] ?? 0).toDouble();
           amonia = (data['ammonia'] ?? data['amonia'] ?? 0).toInt();
           isOnline = data['online'] ?? false;
-          // Baca status relay dari sensor_data (ESP32 yang report)
           isFanOn = data['relay_fan'] ?? false;
           isPumpOn = data['relay_pump'] ?? false;
-          isAutoMode = data['auto_mode'] ?? true;
-        });
-      }
-    });
-  }
-
-  // ════════════════════════════════════════════
-  // ✅ LISTEN kontrol dari /controls (sinkron dengan ESP32)
-  // ════════════════════════════════════════════
-  void _listenToControls() {
-    _controlSubscription = _database
-        .child('controls')  // ✅ FIXED
-        .onValue
-        .listen((DatabaseEvent event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (data != null && mounted) {
-        setState(() {
-          // Update dari controls (yang Flutter tulis, ESP32 baca)
-          isAutoMode = data['auto_mode'] ?? isAutoMode;
-          isFanOn = data['fan'] ?? isFanOn;
-          isPumpOn = data['pump'] ?? isPumpOn;
         });
       }
     });
@@ -128,10 +102,6 @@ class _ControlScreenState extends State<ControlScreen> {
                       _buildHeader(),
                       const SizedBox(height: 12),
                       _buildConnectionStatus(),
-                      const SizedBox(height: 12),
-                      if (!isAutoMode) _buildWarningBanner(),
-                      if (!isAutoMode) const SizedBox(height: 12),
-                      _buildAutoModeCard(),
                       const SizedBox(height: 16),
                       _buildSensorMonitor(),
                       const SizedBox(height: 16),
@@ -161,7 +131,7 @@ class _ControlScreenState extends State<ControlScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Kontrol Manual',
+              'Kontrol Perangkat',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -209,109 +179,6 @@ class _ControlScreenState extends State<ControlScreen> {
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWarningBanner() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFF9500).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFFF9500).withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF9500), size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Mode Manual Aktif',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFFF9500),
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  'Kontrol otomatis dinonaktifkan',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAutoModeCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isAutoMode 
-                      ? const Color(0xFF34C759).withOpacity(0.1)
-                      : const Color(0xFFFF9500).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  isAutoMode ? Icons.autorenew_rounded : Icons.pan_tool_rounded,
-                  color: isAutoMode ? const Color(0xFF34C759) : const Color(0xFFFF9500),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Mode Otomatis',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    isAutoMode ? 'Kontrol berdasarkan THI' : 'Kontrol manual aktif',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          Switch.adaptive(
-            value: isAutoMode,
-            activeColor: const Color(0xFF34C759),
-            onChanged: (value) {
-              setState(() => isAutoMode = value);
-              _updateControl('auto_mode', value);
-            },
           ),
         ],
       ),
@@ -405,7 +272,7 @@ class _ControlScreenState extends State<ControlScreen> {
             icon: Icons.air_rounded,
             color: const Color(0xFF34C759),
             isOn: isFanOn,
-            enabled: !isAutoMode,
+            enabled: true,
             onChanged: (value) {
               setState(() => isFanOn = value);
               _updateControl('fan', value);
@@ -418,7 +285,7 @@ class _ControlScreenState extends State<ControlScreen> {
             icon: Icons.water_drop_rounded,
             color: const Color(0xFF007AFF),
             isOn: isPumpOn,
-            enabled: !isAutoMode,
+            enabled: true,
             onChanged: (value) {
               setState(() => isPumpOn = value);
               _updateControl('pump', value);
@@ -558,11 +425,9 @@ class _ControlScreenState extends State<ControlScreen> {
                   color: Colors.grey,
                   onTap: () {
                     setState(() {
-                      isAutoMode = false;
                       isFanOn = false;
                       isPumpOn = false;
                     });
-                    _updateControl('auto_mode', false);
                     _updateControl('fan', false);
                     _updateControl('pump', false);
                   },
@@ -576,11 +441,9 @@ class _ControlScreenState extends State<ControlScreen> {
                   color: const Color(0xFF34C759),
                   onTap: () {
                     setState(() {
-                      isAutoMode = false;
                       isFanOn = true;
                       isPumpOn = false;
                     });
-                    _updateControl('auto_mode', false);
                     _updateControl('fan', true);
                     _updateControl('pump', false);
                   },
@@ -594,11 +457,9 @@ class _ControlScreenState extends State<ControlScreen> {
                   color: const Color(0xFF007AFF),
                   onTap: () {
                     setState(() {
-                      isAutoMode = false;
                       isFanOn = true;
                       isPumpOn = true;
                     });
-                    _updateControl('auto_mode', false);
                     _updateControl('fan', true);
                     _updateControl('pump', true);
                   },

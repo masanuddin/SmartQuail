@@ -78,11 +78,10 @@ class _HelpTab extends StatelessWidget {
       _HelpSection(
         icon: Icons.autorenew_rounded,
         color: const Color(0xFF5856D6),
-        title: 'Mode Otomatis vs Manual',
+        title: 'Kontrol Manual',
         items: [
-          'Mode Otomatis (default): ESP32 mengontrol kipas dan pompa berdasarkan nilai THI secara otomatis.',
-          'Mode Manual: Anda dapat mengontrol kipas dan pompa secara langsung dari aplikasi.',
-          'Saat manual aktif, banner kuning akan muncul sebagai pengingat.',
+          'Semua kontrol kipas dan pompa dilakukan secara manual dari aplikasi.',
+          'Gunakan Quick Presets (Semua OFF, Kipas Saja, Full Cool) untuk atur perangkat dengan cepat.',
         ],
       ),
       _HelpSection(
@@ -93,7 +92,7 @@ class _HelpTab extends StatelessWidget {
           'Tombol kipas memiliki 3 state: MATI → 100% → 50% → MATI.',
           '100% = kecepatan penuh (duty cycle maksimum).',
           '50% = kecepatan sedang untuk hemat energi.',
-          'Kipas hanya bisa dikontrol saat Mode Manual aktif.',
+          'Aktifkan kipas untuk sirkulasi udara kandang.',
         ],
       ),
       _HelpSection(
