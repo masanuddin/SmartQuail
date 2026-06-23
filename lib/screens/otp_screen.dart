@@ -75,7 +75,10 @@ class _OTPScreenState extends State<OTPScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.verifyOTP(otp: _otp);
+    final result = await AuthService.verifyOTP(
+      otp: _otp,
+      verificationId: widget.verificationId,
+    );
 
     if (!mounted) return;
 

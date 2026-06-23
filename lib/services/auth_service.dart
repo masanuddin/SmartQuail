@@ -58,7 +58,7 @@ class AuthService {
     try {
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
-        timeout: const Duration(seconds: 60),
+        timeout: const Duration(seconds: 120),
 
         // Auto-verify (Android saja)
         verificationCompleted: (PhoneAuthCredential credential) async {
