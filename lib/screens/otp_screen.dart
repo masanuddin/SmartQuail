@@ -34,10 +34,12 @@ class _OTPScreenState extends State<OTPScreen> {
   bool _isLoading = false;
   int _resendCooldown = 60;
   Timer? _timer;
+  late String _verificationId;
 
   @override
   void initState() {
     super.initState();
+    _verificationId = widget.verificationId;
     _startResendTimer();
   }
 
@@ -77,7 +79,7 @@ class _OTPScreenState extends State<OTPScreen> {
 
     final result = await AuthService.verifyOTP(
       otp: _otp,
-      verificationId: widget.verificationId,
+      verificationId: _verificationId,
     );
 
     if (!mounted) return;
@@ -107,6 +109,7 @@ class _OTPScreenState extends State<OTPScreen> {
     await AuthService.resendOTP(
       phoneNumber: widget.phoneNumber,
       onCodeSent: (verificationId) {
+        _verificationId = verificationId;
         setState(() => _isLoading = false);
         _startResendTimer();
         _showSuccess('Kode OTP baru telah dikirim');

@@ -1,5 +1,5 @@
 // [INDO] THI Gauge Widget - FIXED VERSION
-// Fix: Angka tidak ketimpa badge DANGER
+// Fix: Uses dynamic thresholds from settings (not hardcoded 72/78).
 
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
@@ -8,12 +8,16 @@ class THIGauge extends StatefulWidget {
   final double value;
   final double minValue;
   final double maxValue;
+  final double normalMax;
+  final double warningMax;
 
   const THIGauge({
     super.key,
     required this.value,
     this.minValue = 60,
     this.maxValue = 100,
+    this.normalMax = 72.0,
+    this.warningMax = 78.0,
   });
 
   @override
@@ -38,7 +42,9 @@ class _THIGaugeState extends State<THIGauge> with SingleTickerProviderStateMixin
   @override
   void didUpdateWidget(THIGauge oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value) {
+    if (oldWidget.value != widget.value ||
+        oldWidget.normalMax != widget.normalMax ||
+        oldWidget.warningMax != widget.warningMax) {
       _updateAnimation();
     }
   }
@@ -66,9 +72,9 @@ class _THIGaugeState extends State<THIGauge> with SingleTickerProviderStateMixin
   }
 
   Color _getValueColor() {
-    if (_currentValue < 72) {
+    if (_currentValue < widget.normalMax) {
       return const Color(0xFF34C759);
-    } else if (_currentValue < 78) {
+    } else if (_currentValue < widget.warningMax) {
       return const Color(0xFFFF9500);
     } else {
       return const Color(0xFFFF3B30);
@@ -76,9 +82,9 @@ class _THIGaugeState extends State<THIGauge> with SingleTickerProviderStateMixin
   }
 
   String _getStatusText() {
-    if (_currentValue < 72) {
+    if (_currentValue < widget.normalMax) {
       return 'NORMAL';
-    } else if (_currentValue < 78) {
+    } else if (_currentValue < widget.warningMax) {
       return 'WARNING';
     } else {
       return 'DANGER';
@@ -92,7 +98,6 @@ class _THIGaugeState extends State<THIGauge> with SingleTickerProviderStateMixin
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Gauge Arc - posisi lebih ke atas
           Positioned(
             top: 0,
             child: CustomPaint(
@@ -101,16 +106,16 @@ class _THIGaugeState extends State<THIGauge> with SingleTickerProviderStateMixin
                 value: _currentValue,
                 minValue: widget.minValue,
                 maxValue: widget.maxValue,
+                normalMax: widget.normalMax,
+                warningMax: widget.warningMax,
               ),
             ),
           ),
-          // Center Value Display - posisi di bawah gauge
           Positioned(
             top: 70,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Angka THI
                 Text(
                   _currentValue.toStringAsFixed(1),
                   style: TextStyle(
@@ -120,9 +125,7 @@ class _THIGaugeState extends State<THIGauge> with SingleTickerProviderStateMixin
                     height: 1.0,
                   ),
                 ),
-                // Spasi antara angka dan badge
                 const SizedBox(height: 8),
-                // Badge Status
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                   decoration: BoxDecoration(
@@ -152,11 +155,15 @@ class _GaugePainter extends CustomPainter {
   final double value;
   final double minValue;
   final double maxValue;
+  final double normalMax;
+  final double warningMax;
 
   _GaugePainter({
     required this.value,
     required this.minValue,
     required this.maxValue,
+    required this.normalMax,
+    required this.warningMax,
   });
 
   @override
@@ -164,7 +171,6 @@ class _GaugePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height);
     final radius = size.width / 2 - 20;
 
-    // Background arc
     final bgPaint = Paint()
       ..color = const Color(0xFFE5E5EA)
       ..style = PaintingStyle.stroke
@@ -179,19 +185,17 @@ class _GaugePainter extends CustomPainter {
       bgPaint,
     );
 
-    // Colored zones
-    _drawZoneArc(canvas, center, radius, 60, 72, const Color(0xFF34C759).withOpacity(0.25));
-    _drawZoneArc(canvas, center, radius, 72, 78, const Color(0xFFFF9500).withOpacity(0.25));
-    _drawZoneArc(canvas, center, radius, 78, 100, const Color(0xFFFF3B30).withOpacity(0.25));
+    _drawZoneArc(canvas, center, radius, minValue, normalMax, const Color(0xFF34C759).withOpacity(0.25));
+    _drawZoneArc(canvas, center, radius, normalMax, warningMax, const Color(0xFFFF9500).withOpacity(0.25));
+    _drawZoneArc(canvas, center, radius, warningMax, maxValue, const Color(0xFFFF3B30).withOpacity(0.25));
 
-    // Value arc
     final valueRatio = (value.clamp(minValue, maxValue) - minValue) / (maxValue - minValue);
     final sweepAngle = math.pi * valueRatio;
 
     Color arcColor;
-    if (value < 72) {
+    if (value < normalMax) {
       arcColor = const Color(0xFF34C759);
-    } else if (value < 78) {
+    } else if (value < warningMax) {
       arcColor = const Color(0xFFFF9500);
     } else {
       arcColor = const Color(0xFFFF3B30);
@@ -211,10 +215,7 @@ class _GaugePainter extends CustomPainter {
       valuePaint,
     );
 
-    // Draw tick marks
     _drawTicks(canvas, center, radius);
-
-    // Draw labels
     _drawLabels(canvas, center, radius, size);
   }
 
@@ -268,16 +269,17 @@ class _GaugePainter extends CustomPainter {
       fontWeight: FontWeight.w600,
     );
 
-    // Min label (60)
+    final minLabel = minValue.toInt().toString();
+    final maxLabel = maxValue.toInt().toString();
+
     final minPainter = TextPainter(
-      text: TextSpan(text: '60', style: textStyle),
+      text: TextSpan(text: minLabel, style: textStyle),
       textDirection: TextDirection.ltr,
     )..layout();
     minPainter.paint(canvas, Offset(8, size.height - 5));
 
-    // Max label (100)
     final maxPainter = TextPainter(
-      text: TextSpan(text: '100', style: textStyle),
+      text: TextSpan(text: maxLabel, style: textStyle),
       textDirection: TextDirection.ltr,
     )..layout();
     maxPainter.paint(canvas, Offset(size.width - 30, size.height - 5));
@@ -285,6 +287,8 @@ class _GaugePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GaugePainter oldDelegate) {
-    return oldDelegate.value != value;
+    return oldDelegate.value != value ||
+        oldDelegate.normalMax != normalMax ||
+        oldDelegate.warningMax != warningMax;
   }
 }

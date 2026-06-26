@@ -1,12 +1,15 @@
 // [INDO] Dashboard Screen - FIXED VERSION
-// Path Firebase disinkronkan dengan ESP32 SmartQuail v5.0
+// FIXED: THI thresholds read from SharedPreferences (no longer hardcoded 72/78).
+// Uses unified SensorData model for parsing.
 // lib/screens/dashboard_screen.dart
 
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/kpi_card.dart';
 import '../widgets/thi_gauge.dart';
+import '../models/sensor_data.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,7 +20,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
-  
+
   double temperature = 0.0;
   double humidity = 0.0;
   double thi = 0.0;
@@ -28,13 +31,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool isOnline = false;
   DateTime lastUpdate = DateTime.now();
 
+  double _thiNormalMax = 72.0;
+  double _thiWarningMax = 78.0;
+
   StreamSubscription<DatabaseEvent>? _dataSubscription;
   bool _alertShown = false;
 
   @override
   void initState() {
     super.initState();
+    _loadThresholds();
     _listenToFirebase();
+  }
+
+  Future<void> _loadThresholds() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _thiNormalMax = prefs.getDouble('thiNormal') ?? 72.0;
+        _thiWarningMax = prefs.getDouble('thiWarning') ?? 78.0;
+      });
+    }
   }
 
   @override
@@ -44,37 +61,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _listenToFirebase() {
-    // ════════════════════════════════════════════
-    // ✅ FIX: Path disinkronkan dengan ESP32
-    // ESP32 menulis ke /sensor_data
-    // ════════════════════════════════════════════
     _dataSubscription = _database
-        .child('sensor_data')  // ✅ FIXED - sebelumnya 'smartquail/devices/esp32-01'
+        .child('sensor_data')
         .onValue
         .listen((DatabaseEvent event) {
       final data = event.snapshot.value as Map<dynamic, dynamic>?;
-      
+
       if (data != null && mounted) {
+        final sensor = SensorData.fromMap(data);
         setState(() {
-          temperature = (data['temperature'] ?? 0).toDouble();
-          humidity = (data['humidity'] ?? 0).toDouble();
-          thi = (data['thi'] ?? 0).toDouble();
-          amonia = (data['ammonia'] ?? data['amonia'] ?? 0).toInt(); // support kedua key
-          relayFan = data['relay_fan'] ?? false;
-          relayPump = data['relay_pump'] ?? false;
-          isOnline = data['online'] ?? false;
+          temperature = sensor.temperature;
+          humidity = sensor.humidity;
+          thi = sensor.thi;
+          amonia = sensor.ammonia.toInt();
+          relayFan = sensor.relayFan;
+          relayPump = sensor.relayPump;
+          isOnline = sensor.online;
           lastUpdate = DateTime.now();
-          
-          if (thi < 72) {
+
+          if (thi < _thiNormalMax) {
             systemStatus = 'normal';
-          } else if (thi < 78) {
+          } else if (thi < _thiWarningMax) {
             systemStatus = 'warning';
           } else {
             systemStatus = 'danger';
           }
         });
-        
-        // Alert amonia hanya sekali
+
         if (amonia > 50 && !_alertShown) {
           _alertShown = true;
           _showAmoniaAlert();
@@ -106,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Icon(Icons.warning, color: Colors.white),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('⚠️ BAHAYA! Amonia tinggi ($amonia ppm)\nSegera bersihkan kandang!'),
+              child: Text('BAHAYA! Amonia tinggi ($amonia ppm)\nSegera bersihkan kandang!'),
             ),
           ],
         ),
@@ -123,6 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
+            await _loadThresholds();
             setState(() {});
           },
           child: LayoutBuilder(
@@ -272,8 +286,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              systemStatus == 'danger' 
-                  ? Icons.warning_rounded 
+              systemStatus == 'danger'
+                  ? Icons.warning_rounded
                   : systemStatus == 'warning'
                       ? Icons.info_rounded
                       : Icons.check_circle_rounded,
@@ -336,7 +350,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         KPICard(
           icon: Icons.thermostat_rounded,
           label: 'Suhu',
-          value: '${temperature.toStringAsFixed(1)}°C',
+          value: '${temperature.toStringAsFixed(1)}C',
           status: temperature > 30 ? 'danger' : (temperature > 26 ? 'warning' : 'normal'),
           color: const Color(0xFFFF9500),
         ),
@@ -368,7 +382,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildAmoniaCard() {
     Color statusColor = amonia > 50 ? Colors.red : (amonia > 25 ? Colors.orange : Colors.green);
     String statusText = amonia > 50 ? 'BAHAYA! Bersihkan kandang!' : (amonia > 25 ? 'Perhatian' : 'Normal');
-    
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -396,7 +410,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Gas Amonia (NH₃)',
+                  'Gas Amonia (NH\u2083)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -536,8 +550,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 180,
-            child: THIGauge(value: thi),
+            height: 200,
+            child: THIGauge(
+              value: thi,
+              normalMax: _thiNormalMax,
+              warningMax: _thiWarningMax,
+            ),
           ),
         ],
       ),

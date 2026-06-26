@@ -1,7 +1,5 @@
-// Login Screen - Fixed navigation for AuthWrapper pattern
-// lib/screens/login_screen.dart
-
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_widgets.dart';
 import 'otp_screen.dart';
@@ -18,9 +16,21 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorText;
 
+  late final TapGestureRecognizer _termsRecognizer1;
+  late final TapGestureRecognizer _termsRecognizer2;
+
+  @override
+  void initState() {
+    super.initState();
+    _termsRecognizer1 = TapGestureRecognizer()..onTap = () {};
+    _termsRecognizer2 = TapGestureRecognizer()..onTap = () {};
+  }
+
   @override
   void dispose() {
     _phoneController.dispose();
+    _termsRecognizer1.dispose();
+    _termsRecognizer2.dispose();
     super.dispose();
   }
 
@@ -32,17 +42,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _validatePhone() {
     final phone = _phoneController.text.trim();
-    
+
     if (phone.isEmpty) {
       setState(() => _errorText = 'Nomor telepon tidak boleh kosong');
       return false;
     }
-    
+
     if (phone.length < 9) {
       setState(() => _errorText = 'Nomor telepon minimal 9 digit');
       return false;
     }
-    
+
     return true;
   }
 
@@ -60,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
       phoneNumber: phoneNumber,
       onCodeSent: (verificationId) {
         setState(() => _isLoading = false);
-        
+
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -87,14 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = false);
 
-    if (result['success']) {
-      // ✅ FIX: Tidak perlu navigate manual
-      // AuthWrapper di main.dart otomatis detect auth state change
-      // dan akan menampilkan MainNavigation
-      // 
-      // Sebelumnya: Navigator.pushReplacementNamed(context, '/dashboard');
-      // Sekarang: cukup biarkan AuthWrapper handle
-    } else {
+    if (!result['success']) {
       setState(() => _errorText = result['error']);
     }
   }
@@ -111,12 +114,10 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const SizedBox(height: 60),
 
-              // Logo
               const SmartQuailLogo(size: 80),
 
               const SizedBox(height: 48),
 
-              // Title
               const Text(
                 'Masuk ke Akun',
                 style: TextStyle(
@@ -140,7 +141,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 40),
 
-              // Phone input
               ApplePhoneInput(
                 controller: _phoneController,
                 errorText: _errorText,
@@ -149,7 +149,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              // Send OTP button
               ApplePrimaryButton(
                 text: 'Kirim Kode OTP',
                 isLoading: _isLoading,
@@ -158,7 +157,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 16),
 
-              // Divider
               Row(
                 children: [
                   const Expanded(child: Divider(color: AppleColors.separator)),
@@ -178,15 +176,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 16),
 
-              // Guest button
               AppleSecondaryButton(
                 text: 'Lanjut sebagai Tamu',
+                isLoading: _isLoading,
                 onPressed: _continueAsGuest,
               ),
 
               const SizedBox(height: 32),
 
-              // Terms
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: RichText(
@@ -203,12 +200,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       TextSpan(
                         text: 'Ketentuan Layanan',
-                        style: TextStyle(color: AppleColors.systemBlue),
+                        style: TextStyle(
+                          color: AppleColors.systemBlue,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: _termsRecognizer1,
                       ),
                       const TextSpan(text: ' dan '),
                       TextSpan(
                         text: 'Kebijakan Privasi',
-                        style: TextStyle(color: AppleColors.systemBlue),
+                        style: TextStyle(
+                          color: AppleColors.systemBlue,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: _termsRecognizer2,
                       ),
                       const TextSpan(text: ' kami.'),
                     ],

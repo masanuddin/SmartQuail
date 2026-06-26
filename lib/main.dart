@@ -1,8 +1,5 @@
 // SmartQuail Mobile App
-// IoT Monitoring untuk Kandang Puyuh Cerdas
-// ✅ FIXED: Import paths corrected
 
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -25,11 +22,6 @@ void main() async {
 
   FlutterError.onError = (errorDetails) {
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-  };
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
   };
   
   SystemChrome.setSystemUIOverlayStyle(
@@ -57,7 +49,6 @@ class SmartQuailApp extends StatelessWidget {
           seedColor: const Color(0xFF007AFF),
           brightness: Brightness.light,
         ),
-        fontFamily: 'SF Pro Display',
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Color(0xFF1D1D1F),

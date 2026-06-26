@@ -438,7 +438,7 @@ class _AppleOTPInputState extends State<AppleOTPInput> {
             ),
           ),
           child: RawKeyboardListener(
-            focusNode: FocusNode(),
+            focusNode: _focusNodes[index],
             onKey: (event) => _onKeyDown(index, event),
             child: TextField(
               controller: _controllers[index],

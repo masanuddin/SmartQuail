@@ -29,7 +29,7 @@ class HistoryData {
       temperature < 60.0 &&
       humidity > 5.0 &&
       humidity <= 100.0 &&
-      thi > 40.0 &&
+      thi > -20.0 &&
       thi < 110.0;
 }
 
@@ -76,10 +76,8 @@ class HistoryService {
 
     List<HistoryData> allData = [];
     allData.addAll(await _getDateData(_formatDate(now)));
-    if (now.hour < 24) {
-      final yesterdayData = await _getDateData(_formatDate(yesterday));
-      allData.insertAll(0, yesterdayData);
-    }
+    final yesterdayData = await _getDateData(_formatDate(yesterday));
+    allData.insertAll(0, yesterdayData);
 
     if (allData.length > 288) {
       allData = allData.sublist(allData.length - 288);
@@ -119,15 +117,33 @@ class HistoryService {
       final snapshot = await _dbRef.child('$_historyPath/$dateStr').get();
       if (!snapshot.exists) return [];
 
-      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final raw = snapshot.value;
+      if (raw is! Map) return [];
+      final data = Map<String, dynamic>.from(raw);
       final List<HistoryData> result = [];
       final sortedKeys = data.keys.toList()..sort();
 
       for (final timeKey in sortedKeys) {
         final entry = data[timeKey];
         if (entry is Map) {
+          String resolvedTime = timeKey;
+
+          // Fallback: kalau timeKey bukan format "HH:MM" (e.g. RTC rusak),
+          // parse dari field 'ts' (epoch detik) yang dikirim ESP32
+          final timeKeyRegex = RegExp(r'^\d{2}:\d{2}$');
+          if (!timeKeyRegex.hasMatch(timeKey)) {
+            final ts = entry['ts'];
+            if (ts != null) {
+              final dt = DateTime.fromMillisecondsSinceEpoch(
+                ((ts is int ? ts : int.tryParse(ts.toString()) ?? 0) * 1000),
+              );
+              resolvedTime =
+                  '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+            }
+          }
+
           final point = HistoryData(
-            time: timeKey,
+            time: resolvedTime,
             temperature: (entry['t'] ?? 0).toDouble(),
             humidity: (entry['h'] ?? 0).toDouble(),
             ammonia: (entry['a'] ?? 0).toDouble(),

@@ -1,12 +1,14 @@
 // [INDO] Control Screen - FIXED VERSION
-// ✅ FIX: Path Firebase disinkronkan dengan ESP32
-//   - Baca sensor dari /sensor_data (bukan /smartquail/devices/esp32-01)
-//   - Tulis kontrol ke /controls (bukan /smartquail/controls)
+// FIXED: Fan/pump toggle no longer auto-reverts.
+//   - Switch state driven by /controls stream (user command = source of truth).
+//   - /sensor_data stream only updates sensor readings + actual relay status.
+//   - Race condition between user toggle and sensor feed eliminated.
 // lib/screens/control_screen.dart
 
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
+import '../models/sensor_data.dart';
 
 class ControlScreen extends StatefulWidget {
   const ControlScreen({super.key});
@@ -17,9 +19,12 @@ class ControlScreen extends StatefulWidget {
 
 class _ControlScreenState extends State<ControlScreen> {
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
-  
+
   bool isFanOn = false;
   bool isPumpOn = false;
+
+  bool relayFanActual = false;
+  bool relayPumpActual = false;
 
   double temperature = 0;
   double humidity = 0;
@@ -28,37 +33,39 @@ class _ControlScreenState extends State<ControlScreen> {
   bool isOnline = false;
 
   StreamSubscription<DatabaseEvent>? _sensorSubscription;
+  StreamSubscription<DatabaseEvent>? _controlsSubscription;
 
   @override
   void initState() {
     super.initState();
     _listenToSensorData();
+    _listenToControls();
   }
 
   @override
   void dispose() {
     _sensorSubscription?.cancel();
+    _controlsSubscription?.cancel();
     super.dispose();
   }
 
-  // ════════════════════════════════════════════
-  // ✅ BACA sensor data dari /sensor_data
-  // ════════════════════════════════════════════
+  // Listen /sensor_data for environmental readings only
   void _listenToSensorData() {
     _sensorSubscription = _database
-        .child('sensor_data')  // ✅ FIXED
+        .child('sensor_data')
         .onValue
         .listen((DatabaseEvent event) {
       final data = event.snapshot.value as Map<dynamic, dynamic>?;
       if (data != null && mounted) {
         setState(() {
-          temperature = (data['temperature'] ?? 0).toDouble();
-          humidity = (data['humidity'] ?? 0).toDouble();
-          thi = (data['thi'] ?? 0).toDouble();
-          amonia = (data['ammonia'] ?? data['amonia'] ?? 0).toInt();
-          isOnline = data['online'] ?? false;
-          isFanOn = data['relay_fan'] ?? false;
-          isPumpOn = data['relay_pump'] ?? false;
+          final sensor = SensorData.fromMap(data);
+          temperature = sensor.temperature;
+          humidity = sensor.humidity;
+          thi = sensor.thi;
+          amonia = sensor.ammonia.toInt();
+          isOnline = sensor.online;
+          relayFanActual = sensor.relayFan;
+          relayPumpActual = sensor.relayPump;
         });
       }
     }, onError: (error) {
@@ -75,9 +82,23 @@ class _ControlScreenState extends State<ControlScreen> {
     });
   }
 
-  // ════════════════════════════════════════════
-  // ✅ TULIS kontrol ke /controls (ESP32 akan baca)
-  // ════════════════════════════════════════════
+  // Listen /controls for switch state (source of truth for toggles)
+  void _listenToControls() {
+    _controlsSubscription = _database
+        .child('controls')
+        .onValue
+        .listen((DatabaseEvent event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data != null && mounted) {
+        setState(() {
+          isFanOn = data['fan'] == true;
+          isPumpOn = data['pump'] == true;
+        });
+      }
+    });
+  }
+
+  // Write control command to /controls
   void _updateControl(String key, dynamic value) {
     _database.child('controls/$key').set(value).catchError((error) {
       if (mounted) {
@@ -93,15 +114,14 @@ class _ControlScreenState extends State<ControlScreen> {
   }
 
   void _triggerFeeding() {
-    _database.child('controls/feed_now').set(true);  // ✅ FIXED
+    _database.child('controls/feed_now').set(true);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('🍽️ Feeding triggered!'),
+        content: Text('Feeding triggered!'),
         backgroundColor: Color(0xFF34C759),
         duration: Duration(seconds: 2),
       ),
     );
-    // ESP32 akan reset feed_now ke false setelah selesai
   }
 
   @override
@@ -176,7 +196,7 @@ class _ControlScreenState extends State<ControlScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isOnline 
+        color: isOnline
             ? const Color(0xFF34C759).withOpacity(0.1)
             : const Color(0xFFFF3B30).withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
@@ -232,13 +252,13 @@ class _ControlScreenState extends State<ControlScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _sensorChip('🌡️ ${temperature.toStringAsFixed(1)}°C'),
+              _sensorChip('${temperature.toStringAsFixed(1)}C'),
               const SizedBox(width: 8),
-              _sensorChip('💧 ${humidity.toStringAsFixed(0)}%'),
+              _sensorChip('${humidity.toStringAsFixed(0)}%'),
               const SizedBox(width: 8),
-              _sensorChip('📊 THI ${thi.toStringAsFixed(1)}'),
+              _sensorChip('THI ${thi.toStringAsFixed(1)}'),
               const SizedBox(width: 8),
-              _sensorChip('☁️ $amonia ppm'),
+              _sensorChip('$amonia ppm'),
             ],
           ),
         ],
@@ -293,9 +313,9 @@ class _ControlScreenState extends State<ControlScreen> {
             icon: Icons.air_rounded,
             color: const Color(0xFF34C759),
             isOn: isFanOn,
+            actualOn: relayFanActual,
             enabled: true,
             onChanged: (value) {
-              setState(() => isFanOn = value);
               _updateControl('fan', value);
             },
           ),
@@ -306,9 +326,9 @@ class _ControlScreenState extends State<ControlScreen> {
             icon: Icons.water_drop_rounded,
             color: const Color(0xFF007AFF),
             isOn: isPumpOn,
+            actualOn: relayPumpActual,
             enabled: true,
             onChanged: (value) {
-              setState(() => isPumpOn = value);
               _updateControl('pump', value);
             },
           ),
@@ -323,6 +343,7 @@ class _ControlScreenState extends State<ControlScreen> {
     required IconData icon,
     required Color color,
     required bool isOn,
+    required bool actualOn,
     required bool enabled,
     required Function(bool) onChanged,
   }) {
@@ -352,8 +373,32 @@ class _ControlScreenState extends State<ControlScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                  Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                  Row(
+                    children: [
+                      Text(label, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                      if (isOnline && actualOn != isOn) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF9500),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Text(
+                    isOnline && isOn && !actualOn
+                        ? '$subtitle (menunggu respon...)'
+                        : subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isOnline && isOn && !actualOn
+                          ? const Color(0xFFFF9500)
+                          : Colors.grey[600],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -445,10 +490,6 @@ class _ControlScreenState extends State<ControlScreen> {
                   icon: Icons.power_off_rounded,
                   color: Colors.grey,
                   onTap: () {
-                    setState(() {
-                      isFanOn = false;
-                      isPumpOn = false;
-                    });
                     _updateControl('fan', false);
                     _updateControl('pump', false);
                   },
@@ -461,10 +502,6 @@ class _ControlScreenState extends State<ControlScreen> {
                   icon: Icons.air_rounded,
                   color: const Color(0xFF34C759),
                   onTap: () {
-                    setState(() {
-                      isFanOn = true;
-                      isPumpOn = false;
-                    });
                     _updateControl('fan', true);
                     _updateControl('pump', false);
                   },
@@ -477,10 +514,6 @@ class _ControlScreenState extends State<ControlScreen> {
                   icon: Icons.ac_unit_rounded,
                   color: const Color(0xFF007AFF),
                   onTap: () {
-                    setState(() {
-                      isFanOn = true;
-                      isPumpOn = true;
-                    });
                     _updateControl('fan', true);
                     _updateControl('pump', true);
                   },
